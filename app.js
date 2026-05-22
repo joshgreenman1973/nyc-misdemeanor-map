@@ -589,8 +589,15 @@ function renderRank(){
   h+='</table>';
   const t=document.getElementById('rankTable'); t.innerHTML=h;
   t.querySelectorAll('th.sortable').forEach(th=>th.addEventListener('click',()=>{ state.rankSort=th.dataset.sort; renderRank(); }));
-  t.querySelectorAll('tr[data-p]').forEach(tr=>tr.addEventListener('click',()=>{ state.precinct=+tr.dataset.p; renderDetail(); highlightSelected();
-    if(byPctLayer[state.precinct]) map.fitBounds(byPctLayer[state.precinct].getBounds(),{maxZoom:13,padding:[40,40]}); }));
+  t.querySelectorAll('tr[data-p]').forEach(tr=>tr.addEventListener('click',()=>focusPrecinct(+tr.dataset.p)));
+}
+// select a precinct AND bring the map + dossier into view (used when clicking away from the map)
+function focusPrecinct(p){
+  state.precinct=p; renderDetail(); highlightSelected();
+  if(byPctLayer[p]) map.fitBounds(byPctLayer[p].getBounds(),{maxZoom:13,padding:[40,40]});
+  const panel=document.getElementById('map').closest('.panel');
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+  panel.classList.remove('flash'); void panel.offsetWidth; panel.classList.add('flash');
 }
 
 /* ---------- precinct detail ---------- */

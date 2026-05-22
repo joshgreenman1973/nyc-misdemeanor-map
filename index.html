@@ -114,7 +114,9 @@
 
   /* ---------- panels ---------- */
   .panel{background:var(--card);border:1.5px solid var(--rule);box-shadow:5px 5px 0 rgba(22,19,12,.14);
-    padding:0;margin-bottom:22px}
+    padding:0;margin-bottom:22px;scroll-margin-top:130px}
+  .flash{animation:flash .9s ease-out 1}
+  @keyframes flash{0%{box-shadow:0 0 0 3px var(--hot),5px 5px 0 rgba(22,19,12,.14)}100%{box-shadow:5px 5px 0 rgba(22,19,12,.14)}}
   .panel .body{padding:16px 18px}
   .panel .phead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
     padding:9px 16px;border-bottom:1.5px solid var(--rule);background:var(--ink);color:var(--paper)}
@@ -488,6 +490,6 @@
 <div class="tip" id="tip"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
