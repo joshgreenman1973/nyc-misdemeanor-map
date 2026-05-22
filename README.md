@@ -7,9 +7,11 @@ offenses from victim-reported ones.
 
 Features: precinct choropleth with three shadings — incident count, enforcement-sensitive share, and a
 **complaint-to-arrest ratio** (diverging scale centered on the citywide ratio) — plus a year slider with
-play-through, offense search/filter, citywide trend by offense group, a reported-vs-enforced comparison,
-borough trends, precinct ranking, and per-precinct drill-down. Design: an editorial "precinct ledger" with a
-dark map inset (Fraunces + IBM Plex).
+play-through, an offense search that also accepts a year (type "2020" to jump the map), a citywide trend by
+offense group, a reported-vs-enforced comparison, borough trends, precinct ranking, per-precinct drill-down,
+and a **trend explorer / precinct-comparison tool** (track any offense, group or all offenses over time for the
+whole city or up to three precincts side by side). Contextual tooltips explain every group, metric and number.
+Design: an editorial "precinct ledger" with a dark map inset (Fraunces + IBM Plex).
 
 ## Data
 

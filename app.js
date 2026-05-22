@@ -36,8 +36,11 @@ const state = {
   year: 2025,
   offsel: new Set(),   // selected offense ids
   precinct: null,
-  zero: { group:true, compare:true, boro:true },
+  zero: { group:true, compare:true, boro:true, trend:true },
   showEvents: true,
+  trendOffense: 'all', // 'all' | 'g:<group>' | 'o:<oid>'
+  trendCity: true,
+  trendPlaces: [],     // up to 3 precinct numbers
 };
 
 let DATA, geo, map, geoLayer, tip;
@@ -159,7 +162,7 @@ function init(){
   bindTog('zeroGroup','group',renderGroupTrend);
   bindTog('zeroCompare','compare',renderCompare);
   bindTog('zeroBoro','boro',renderBoro);
-  document.getElementById('showEvents').addEventListener('change',e=>{ state.showEvents=e.target.checked; renderGroupTrend(); renderCompare(); renderBoro(); });
+  document.getElementById('showEvents').addEventListener('change',e=>{ state.showEvents=e.target.checked; renderGroupTrend(); renderCompare(); renderBoro(); renderTrendExplorer(); });
 
   // events list
   document.getElementById('eventList').innerHTML = EVENTS.map(e=>`<span class="pill">${e.year}: ${e.label}</span>`).join('') +
@@ -167,6 +170,7 @@ function init(){
 
   initMap();
   buildPicker();
+  buildTrendControls();
   renderAll();
   initPlay();
 }
@@ -178,7 +182,16 @@ function bindTog(id,key,fn){ document.getElementById(id).addEventListener('chang
 
 /* ---------- offense picker ---------- */
 function buildPicker(){
-  const q=(document.getElementById('offSearch').value||'').toLowerCase();
+  const raw=(document.getElementById('offSearch').value||'').trim();
+  const isYear=/^\d{4}$/.test(raw) && DATA.years.includes(+raw);
+  if(isYear){ const yr=+raw; if(state.year!==yr){ state.year=yr;
+    const ys=document.getElementById('yearSlider'); ys.value=DATA.years.indexOf(yr);
+    document.getElementById('yearVal').textContent=yearLabel(yr); renderYearDependent(); } }
+  const hint=document.getElementById('searchHint');
+  if(hint) hint.innerHTML = isYear
+    ? `Showing <strong>${yearLabel(+raw)}</strong> on the map and ranking. Clear the box to search offenses again.`
+    : 'Type an offense name to filter the list, or type a year (2015&ndash;2026) to jump the map and ranking to that year.';
+  const q=isYear? '' : raw.toLowerCase();
   const tot=offenseTotals(state.lens);
   const groups={proactive:[],victim:[],other:[]};
   DATA.offenses.forEach((o,i)=>{ if(q && !o.label.toLowerCase().includes(q)) return; groups[o.group].push(i); });
@@ -419,6 +432,64 @@ function renderBoro(){
   legendHtml('boroLegend',series);
 }
 
+/* ---------- trend explorer & precinct comparison ---------- */
+function trendOffenseMatch(oid){ const t=state.trendOffense;
+  if(t==='all') return true;
+  if(t[0]==='g') return G(oid)===t.slice(2);
+  if(t[0]==='o') return oid===+t.slice(2);
+  return true; }
+function trendValuesFor(place){ const o={};
+  for(const r of rows()){ if(!passLaw(r)||!trendOffenseMatch(r[2])) continue;
+    if(place!=='city' && r[1]!==place) continue; o[r[0]]=(o[r[0]]||0)+r[4]; }
+  return o; }
+function trendOffenseLabel(){ const t=state.trendOffense;
+  if(t==='all') return 'all offenses';
+  if(t[0]==='g') return GNAME[t.slice(2)]+' offenses';
+  return DATA.offenses[+t.slice(2)].label; }
+function lawLabel(){ return state.law==='all'?'misdemeanors + violations':(state.law===0?'misdemeanors':'violations'); }
+const TREND_PAL=['#c8341f','#1f5f7a','#b08328'];
+function renderTrendExplorer(){
+  const pb={}; DATA.precincts.forEach(p=>pb[p.pct]=p.boro);
+  const places=[]; if(state.trendCity) places.push('city'); state.trendPlaces.forEach(p=>places.push(p));
+  let pi=0; const series=places.map(pl=>{
+    const name = pl==='city'?'Citywide':('Precinct '+pl+' · '+(pb[pl]||''));
+    const color = pl==='city'?'#16130c':TREND_PAL[pi++ % TREND_PAL.length];
+    return toSeries(trendValuesFor(pl),name,color);
+  });
+  document.getElementById('trendNote').innerHTML =
+    `<strong>${state.lens}</strong> · ${lawLabel()} · <strong>${trendOffenseLabel()}</strong>. Each line is one place; the dashed segment to 2026 is the first quarter only.`;
+  if(!series.length){ document.getElementById('trendChart').innerHTML='<div class="detailempty">Turn on the Citywide line or add a precinct to see a trend.</div>';
+    document.getElementById('trendLegend').innerHTML=''; }
+  else { lineChart('trendChart',series,{zero:state.zero.trend,height:300}); legendHtml('trendLegend',series); }
+  renderTrendChips();
+}
+function renderTrendChips(){
+  const el=document.getElementById('trendChips'); if(!el) return;
+  const pb={}; DATA.precincts.forEach(p=>pb[p.pct]=p.boro);
+  el.innerHTML = state.trendPlaces.map(p=>`<span class="chip">#${p} · ${pb[p]||''}<button data-rm="${p}" title="remove">&times;</button></span>`).join('')
+    + (state.trendPlaces.length>=3?'<span class="chiphint">max 3 — remove one to add another</span>':'');
+  el.querySelectorAll('button[data-rm]').forEach(b=>b.addEventListener('click',()=>{
+    state.trendPlaces=state.trendPlaces.filter(x=>x!==+b.dataset.rm); renderTrendExplorer(); }));
+}
+function buildTrendControls(){
+  const sel=document.getElementById('trendOffense');
+  let h='<option value="all">All offenses</option><optgroup label="By group">'
+    +'<option value="g:proactive">Enforcement-sensitive (all)</option>'
+    +'<option value="g:victim">Complaint-driven (all)</option>'
+    +'<option value="g:other">Other / mixed (all)</option></optgroup>';
+  ['proactive','victim','other'].forEach(g=>{ h+=`<optgroup label="${GNAME[g]}">`;
+    DATA.offenses.forEach((o,i)=>{ if(o.group===g) h+=`<option value="o:${i}">${o.label}</option>`; }); h+='</optgroup>'; });
+  sel.innerHTML=h; sel.value=state.trendOffense;
+  sel.addEventListener('change',()=>{ state.trendOffense=sel.value; renderTrendExplorer(); });
+  const ps=document.getElementById('trendPctSelect');
+  ps.innerHTML='<option value="">Add a precinct…</option>'+DATA.precincts.map(p=>`<option value="${p.pct}">#${p.pct} — ${p.boro}</option>`).join('');
+  ps.addEventListener('change',()=>{ const v=+ps.value;
+    if(v && !state.trendPlaces.includes(v) && state.trendPlaces.length<3){ state.trendPlaces.push(v); renderTrendExplorer(); }
+    ps.value=''; });
+  document.getElementById('trendCity').addEventListener('change',e=>{ state.trendCity=e.target.checked; renderTrendExplorer(); });
+  document.getElementById('zeroTrend').addEventListener('change',e=>{ state.zero.trend=e.target.checked; renderTrendExplorer(); });
+}
+
 /* ---------- ranking ---------- */
 function renderRank(){
   const pp=perPrecinct(state.year); const pb={}; DATA.precincts.forEach(p=>pb[p.pct]=p.boro);
@@ -462,10 +533,10 @@ function renderDetail(){
 function renderYearDependent(){ renderMap(); renderKPIs(); renderRank(); if(state.precinct!=null) renderDetail(); }
 function renderAll(){
   renderMap(); renderKPIs(); renderRank();
-  renderGroupTrend(); renderCompare(); renderBoro();
+  renderGroupTrend(); renderCompare(); renderBoro(); renderTrendExplorer();
   if(state.precinct!=null) renderDetail();
 }
-window.addEventListener('resize', ()=>{ renderGroupTrend(); renderCompare(); renderBoro(); if(state.precinct!=null) renderDetail(); });
+window.addEventListener('resize', ()=>{ renderGroupTrend(); renderCompare(); renderBoro(); renderTrendExplorer(); if(state.precinct!=null) renderDetail(); });
 
 /* ---------- play ---------- */
 function initPlay(){

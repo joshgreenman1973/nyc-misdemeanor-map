@@ -163,6 +163,16 @@
     transition:opacity .08s;max-width:250px;border-left:3px solid var(--hot)}
   .tip strong{font-family:var(--sans);font-weight:600}
 
+  .trendctl{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;margin-bottom:10px}
+  .trendctl select{min-width:200px;max-width:280px}
+  .tog2{font-family:var(--mono);font-size:12px;display:inline-flex;gap:6px;align-items:center;cursor:pointer;
+    color:var(--ink);padding-bottom:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px;min-height:4px}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:12px;
+    border:1.5px solid var(--rule);background:var(--card);padding:3px 5px 3px 10px}
+  .chip button{border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1;padding:0 2px;color:var(--hot)}
+  .chip button:hover{color:var(--ink)}
+  .chiphint{font-family:var(--mono);font-size:11px;color:var(--muted);align-self:center}
   .info{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
     border:1px solid currentColor;border-radius:50%;font-family:var(--serif);font-size:10px;font-style:italic;
     font-weight:600;line-height:1;cursor:help;opacity:.55;vertical-align:middle;margin-left:5px}
@@ -262,14 +272,15 @@
 
     <div>
       <div class="panel reveal">
-        <div class="phead"><h3>Filter offenses</h3></div>
+        <div class="phead"><h3>Filter offenses<span class="info" data-tip="<strong>Filter offenses</strong><br>These choices drive the map, the ranking and the comparison charts. Tick individual offenses, type to search by name, or use the buttons to pick a whole group.">i</span></h3></div>
         <div class="body">
-          <input type="search" id="offSearch" placeholder="Search offenses — e.g. drugs, larceny, trespass" style="width:100%">
+          <input type="search" id="offSearch" placeholder="Search offenses (e.g. drugs) — or type a year (e.g. 2020)" style="width:100%">
+          <div class="note" id="searchHint" style="margin:5px 0 0">Type an offense name to filter the list, or type a year (2015&ndash;2026) to jump the map and ranking to that year.</div>
           <div class="pickbtns">
-            <button data-pick="proactive">Only enforcement-sensitive</button>
-            <button data-pick="victim">Only complaint-driven</button>
-            <button data-pick="all">All</button>
-            <button data-pick="none">Clear</button>
+            <button data-pick="proactive" data-tip="Show only the enforcement-sensitive (proactively policed) offenses.">Only enforcement-sensitive</button>
+            <button data-pick="victim" data-tip="Show only the complaint-driven (victim-reported) offenses.">Only complaint-driven</button>
+            <button data-pick="all" data-tip="Select every offense type.">All</button>
+            <button data-pick="none" data-tip="Clear the selection. Nothing shows on the map until you pick at least one offense.">Clear</button>
           </div>
           <div class="offwrap" id="offWrap"></div>
         </div>
@@ -322,6 +333,29 @@
     </div>
   </div>
 
+  <div class="sect reveal"><span class="no">§05</span><h2>Trend explorer &amp; precinct comparison</h2><span class="rule"></span></div>
+  <div class="panel reveal">
+    <div class="phead"><h3>Compare year-by-year trends<span class="info" data-tip="<strong>Trend explorer</strong><br>Track any offense, offense group, or all offenses over time — for the whole city or for up to three precincts side by side. Uses the lens (complaints/arrests) and offense level chosen at the top.">i</span></h3>
+      <label class="tog"><input type="checkbox" id="zeroTrend" checked> zero axis</label></div>
+    <div class="body">
+      <div class="trendctl">
+        <div class="ctl">
+          <label>Offenses<span class="info" data-tip="Choose all offenses, a whole group (enforcement-sensitive, complaint-driven or other), or a single offense type.">i</span></label>
+          <select id="trendOffense"></select>
+        </div>
+        <div class="ctl">
+          <label>Add a precinct (up to 3)<span class="info" data-tip="Pick precincts to compare. Each becomes a line on the chart. You can also keep Citywide on as a baseline.">i</span></label>
+          <select id="trendPctSelect"></select>
+        </div>
+        <label class="tog2"><input type="checkbox" id="trendCity" checked> Citywide line</label>
+      </div>
+      <div class="chips" id="trendChips"></div>
+      <div class="note" id="trendNote" style="margin-bottom:8px"></div>
+      <div id="trendChart"></div>
+      <div class="chartlegend" id="trendLegend"></div>
+    </div>
+  </div>
+
   <div class="panel reveal">
     <div class="phead"><h3>Context markers used in the charts</h3>
       <label class="tog"><input type="checkbox" id="showEvents" checked> show on charts</label></div>
@@ -351,6 +385,6 @@
 <div class="tip" id="tip"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="app.js"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
