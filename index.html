@@ -24,7 +24,8 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
-    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  img,svg{max-width:100%}
   body{background-image:
     radial-gradient(circle at 12% 8%, rgba(200,52,31,.05), transparent 36%),
     radial-gradient(circle at 88% 4%, rgba(31,95,122,.06), transparent 40%);}
@@ -57,29 +58,53 @@
   .twolens .l-c{border-color:var(--cool);color:var(--cool)}
   .twolens .l-a{border-color:var(--hot);color:var(--hot)}
 
-  /* ---------- control rail ---------- */
-  .controls{display:flex;flex-wrap:wrap;gap:16px 26px;align-items:flex-end;padding:16px 0 18px;
-    border-top:1px solid var(--hair);margin-top:14px}
-  .ctl{display:flex;flex-direction:column;gap:6px}
-  .ctl > label{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  /* hero "read the ledger" button */
+  .tourbtn{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    border:1.5px solid var(--rule);background:var(--ink);color:var(--paper);padding:9px 16px;cursor:pointer;
+    box-shadow:3px 3px 0 rgba(22,19,12,.3);margin:14px 0 2px}
+  .tourbtn:hover{background:var(--hot)} .tourbtn:active{transform:translate(3px,3px);box-shadow:none}
+
+  /* ---------- sticky control bar ---------- */
+  #controlbar{position:sticky;top:0;z-index:300;background:var(--paper);
+    border-top:1px solid var(--hair);border-bottom:2px solid var(--rule);box-shadow:0 2px 8px rgba(22,19,12,.08)}
+  .controls{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;padding:12px 0 12px}
+  .ctl{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .ctl > label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
     color:var(--muted);font-weight:500}
   .seg{display:inline-flex;border:1.5px solid var(--rule);background:var(--card);
-    box-shadow:3px 3px 0 var(--ink)}
-  .seg button{border:0;background:transparent;padding:8px 13px;font-family:var(--mono);font-size:12px;
-    letter-spacing:.02em;cursor:pointer;color:var(--ink);border-right:1.5px solid var(--rule);transition:background .12s}
+    box-shadow:3px 3px 0 var(--ink);max-width:100%}
+  .seg button{border:0;background:transparent;padding:8px 12px;font-family:var(--mono);font-size:12px;
+    letter-spacing:.02em;cursor:pointer;color:var(--ink);border-right:1.5px solid var(--rule);transition:background .12s;
+    min-width:0;white-space:nowrap}
   .seg button:last-child{border-right:0}
   .seg button:hover{background:var(--paper2)}
-  .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .seg button[aria-checked="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
   select,input[type=search]{font-family:var(--mono);font-size:12.5px;padding:8px 9px;border:1.5px solid var(--rule);
-    background:var(--card);color:var(--ink)}
-  input[type=search]:focus{outline:2px solid var(--hot);outline-offset:1px}
-  .yearbox{min-width:280px;flex:1}
-  .yearrow{display:flex;align-items:center;gap:12px}
-  .yearrow input[type=range]{flex:1;accent-color:var(--hot);height:4px}
-  .yearval{font-family:var(--serif);font-weight:700;font-size:22px;min-width:108px;text-align:right}
-  .playbtn{border:1.5px solid var(--rule);background:var(--card);cursor:pointer;width:34px;height:34px;
-    font-size:13px;box-shadow:2px 2px 0 var(--ink)}
+    background:var(--card);color:var(--ink);max-width:100%}
+  select:focus,input[type=search]:focus{outline:2px solid var(--hot);outline-offset:1px}
+
+  /* state summary line (always visible in sticky bar) */
+  .statebar{font-family:var(--mono);font-size:11px;letter-spacing:.03em;color:var(--muted);
+    display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:0 0 10px}
+  .statebar .lab{color:var(--hot);text-transform:uppercase;letter-spacing:.12em;font-weight:600}
+  .statebar b{color:var(--ink);font-weight:600}
+  .statebar .adjust{display:none}
+
+  /* ---------- year scrubber ---------- */
+  .yearbox{min-width:300px;flex:1}
+  .yearrow{display:flex;align-items:center;gap:10px}
+  .playbtn{border:1.5px solid var(--rule);background:var(--card);cursor:pointer;width:32px;height:32px;
+    font-size:12px;box-shadow:2px 2px 0 var(--ink);flex:none}
   .playbtn:active{transform:translate(2px,2px);box-shadow:none}
+  .scrub{flex:1;min-width:0}
+  .yearbars{display:flex;align-items:flex-end;gap:2px;height:34px}
+  .ybar{flex:1;min-width:3px;background:var(--hair);cursor:pointer;position:relative;transition:background .1s;
+    align-self:flex-end}
+  .ybar:hover{background:var(--gold)}
+  .ybar.active{background:var(--hot)}
+  .yearends{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;color:var(--muted);
+    margin-top:3px;letter-spacing:.04em}
+  .yearval{font-family:var(--serif);font-weight:700;font-size:24px;min-width:74px;text-align:right;flex:none}
 
   /* ---------- section dividers ---------- */
   .sect{display:flex;align-items:baseline;gap:14px;margin:34px 0 14px}
@@ -139,6 +164,39 @@
   .pickbtns button{font-family:var(--mono);font-size:11px;letter-spacing:.02em;border:1.5px solid var(--rule);
     background:var(--card);padding:5px 10px;cursor:pointer;transition:all .12s}
   .pickbtns button:hover{background:var(--ink);color:var(--paper)}
+  .offbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:11px;color:var(--muted);margin:8px 0 4px}
+  .offbar b{color:var(--ink)}
+  .offsort{display:inline-flex;border:1.5px solid var(--rule);background:var(--card)}
+  .offsort button{border:0;border-right:1.5px solid var(--rule);background:transparent;font-family:var(--mono);
+    font-size:10.5px;padding:3px 8px;cursor:pointer;color:var(--ink)}
+  .offsort button:last-child{border-right:0}
+  .offsort button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .offgrp{cursor:pointer;user-select:none;justify-content:flex-start}
+  .offgrp .arrow{font-family:var(--mono);font-size:9px;width:10px;color:var(--muted);transition:transform .12s}
+  .offgrp .gc{margin-left:auto;color:var(--muted);font-weight:400}
+  .offgrp.collapsed .arrow{transform:rotate(-90deg)}
+
+  /* callout (key takeaway) */
+  .callout{border-left:4px solid var(--hot);background:rgba(200,52,31,.05);padding:10px 14px;margin:10px 0;
+    font-family:var(--serif);font-size:15px;line-height:1.4;color:var(--ink)}
+  .callout b{font-weight:600}
+  .minihelp{font-size:12px;color:var(--muted);line-height:1.45;margin:8px 0 0;
+    border-left:2px solid var(--gold);padding-left:9px}
+  .minihelp b{color:var(--ink2);font-weight:600}
+
+  /* dossier clear / pin */
+  .pclear{font-family:var(--mono);font-size:11px;border:1px solid var(--paper);background:transparent;color:var(--paper);
+    cursor:pointer;padding:2px 8px;letter-spacing:.06em}
+  .pclear:hover{background:var(--hot);border-color:var(--hot)}
+
+  /* guided-tour caption overlay on map */
+  .tourcap{position:absolute;left:14px;right:14px;bottom:14px;z-index:600;background:rgba(22,19,12,.92);
+    color:var(--paper);font-family:var(--mono);font-size:13px;line-height:1.45;padding:11px 14px;
+    border-left:4px solid var(--hot);opacity:0;transition:opacity .3s;pointer-events:none}
+  .tourcap.show{opacity:1}
+  .tourcap b{color:var(--gold)}
+  .maphold{position:relative}
 
   /* charts */
   svg.chart{width:100%;height:auto;display:block;overflow:visible}
@@ -194,6 +252,28 @@
     .kpi:nth-child(2){border-right:0}.kpi:nth-child(1),.kpi:nth-child(2){border-bottom:1.5px solid var(--rule)}
     #map{height:440px}
   }
+  @media(max-width:600px){
+    .wrap{padding:0 14px}
+    h1.masthead{font-size:clamp(30px,12vw,46px)}
+    /* sticky bar collapses to the state line + an Adjust toggle */
+    .controls{display:none;flex-direction:column;align-items:stretch;gap:12px;padding-top:4px}
+    #controlbar.open .controls{display:flex}
+    .statebar{padding:9px 0}
+    .statebar .adjust{display:inline-flex;align-items:center;gap:5px;margin-left:auto;border:1.5px solid var(--rule);
+      background:var(--card);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+      padding:4px 9px;cursor:pointer;color:var(--ink)}
+    .ctl{width:100%}
+    .seg{width:100%;box-shadow:2px 2px 0 var(--ink)}
+    .seg button{flex:1 1 0;text-align:center;white-space:normal;padding:8px 4px;font-size:11px;line-height:1.15}
+    .yearbox{width:100%;min-width:0}
+    .kpis{grid-template-columns:1fr 1fr}
+    .kpi{padding:11px 12px}
+    .kpi .val{font-size:24px}
+    .trendctl{flex-direction:column;align-items:stretch}
+    .trendctl select,.trendctl .ctl{width:100%;max-width:100%}
+    .panel .body{padding:13px 13px}
+    .twolens span{font-size:10px;padding:4px 9px}
+  }
 </style>
 </head>
 <body>
@@ -205,50 +285,59 @@
       <span>2015 &mdash; <b>Q1 2026</b></span>
     </div>
     <h1 class="masthead">The Precinct <em>Ledger</em></h1>
-    <p class="standfirst">Every misdemeanor and violation the New York Police Department recorded from 2015 through the first
-      quarter of 2026 &mdash; more than 3.7 million complaints and 1.6 million arrests &mdash; down to the precinct.
-      For petit larceny or assault, complaints and arrests roughly track each other. For drug possession, trespassing
-      and fare evasion, they don't: those counts reflect enforcement decisions as much as what actually happened.</p>
     <div class="twolens">
       <span class="l-c">Complaints = reported crime</span>
       <span class="l-a">Arrests = enforcement activity</span>
     </div>
+    <p class="standfirst">Every misdemeanor and violation the New York Police Department recorded from 2015 through the first
+      quarter of 2026 &mdash; more than 3.7 million complaints and 1.6 million arrests &mdash; down to the precinct.
+      For petit larceny or assault, complaints and arrests roughly track each other. For drug possession, trespassing
+      and fare evasion, they don't: those counts reflect enforcement decisions as much as what actually happened.</p>
+    <button class="tourbtn" id="tourBtn">Read the ledger &rarr;</button>
+  </div>
+</header>
 
+<div id="controlbar">
+  <div class="wrap">
     <div class="controls">
       <div class="ctl">
         <label>Lens</label>
-        <div class="seg" id="lensSeg">
-          <button data-v="complaints" aria-pressed="true">Complaints</button>
-          <button data-v="arrests" aria-pressed="false">Arrests</button>
+        <div class="seg" id="lensSeg" role="radiogroup" aria-label="Lens">
+          <button data-v="complaints" role="radio" aria-checked="true" data-tip="<strong>Complaints</strong><br>Crimes reported to or recorded by police. Measures reported crime.">Complaints</button>
+          <button data-v="arrests" role="radio" aria-checked="false" data-tip="<strong>Arrests</strong><br>Arrests made by police. Measures enforcement activity.">Arrests</button>
         </div>
       </div>
       <div class="ctl">
         <label>Offense level</label>
-        <div class="seg" id="lawSeg">
-          <button data-v="all" aria-pressed="true">All</button>
-          <button data-v="0" aria-pressed="false">Misd.</button>
-          <button data-v="1" aria-pressed="false">Violation</button>
+        <div class="seg" id="lawSeg" role="radiogroup" aria-label="Offense level">
+          <button data-v="all" role="radio" aria-checked="true">All</button>
+          <button data-v="0" role="radio" aria-checked="false">Misd.</button>
+          <button data-v="1" role="radio" aria-checked="false">Violation</button>
         </div>
       </div>
       <div class="ctl">
         <label>Map shading</label>
-        <div class="seg" id="metricSeg">
-          <button data-v="count" aria-pressed="true" data-tip="<strong>Count</strong><br>Total recorded incidents in each precinct. Raw totals, not adjusted for population.">Count</button>
-          <button data-v="share" aria-pressed="false" data-tip="<strong>Enforcement-sensitive share</strong><br>What share of each precinct's incidents are proactively policed offenses (drugs, trespass, fare evasion, etc.) rather than victim-reported ones.">Enforcement share</button>
-          <button data-v="ratio" aria-pressed="false" data-tip="<strong>Complaint-to-arrest ratio</strong><br>Each precinct's complaints divided by its arrests, compared against the citywide average.">Complaint : arrest</button>
+        <div class="seg" id="metricSeg" role="radiogroup" aria-label="Map shading">
+          <button data-v="count" role="radio" aria-checked="true" data-tip="<strong>Count</strong><br>Total recorded incidents in each precinct. Raw totals, not adjusted for population.">Count</button>
+          <button data-v="share" role="radio" aria-checked="false" data-tip="<strong>Enforcement-sensitive share</strong><br>What share of each precinct's incidents are proactively policed offenses (drugs, trespass, fare evasion, etc.) rather than victim-reported ones.">Enforcement share</button>
+          <button data-v="ratio" role="radio" aria-checked="false" data-tip="<strong>Complaint-to-arrest ratio</strong><br>Each precinct's complaints divided by its arrests, compared against the citywide average.">Complaint : arrest</button>
         </div>
       </div>
       <div class="ctl yearbox">
         <label>Year &mdash; map &amp; ranking</label>
         <div class="yearrow">
-          <button class="playbtn" id="playBtn" title="Play through years">&#9658;</button>
-          <input type="range" id="yearSlider" min="0" max="0" value="0" step="1">
+          <button class="playbtn" id="playBtn" title="Play 2015 → 2026 (pauses at the end)" aria-label="Play through years">&#9658;</button>
+          <div class="scrub">
+            <div class="yearbars" id="yearBars" role="slider" tabindex="0" aria-label="Year for map and ranking" aria-valuemin="2015" aria-valuemax="2026"></div>
+            <div class="yearends"><span>2015</span><span>scrub the decade &middot; bar height = that year's total</span><span>2026 Q1</span></div>
+          </div>
           <span class="yearval num" id="yearVal">2025</span>
         </div>
       </div>
     </div>
+    <div class="statebar" id="statebar"></div>
   </div>
-</header>
+</div>
 
 <main class="wrap">
   <div class="sect reveal"><span class="no">§01</span><h2>The ledger at a glance</h2><span class="rule"></span></div>
@@ -259,13 +348,14 @@
     <div>
       <div class="panel reveal">
         <div class="phead"><h3 id="mapTitle">Incident count by precinct</h3></div>
-        <div id="map"></div>
+        <div class="maphold"><div id="map"></div><div class="tourcap" id="tourCap"></div></div>
         <div class="legend" id="legend"></div>
         <div class="body"><div class="readme" id="mapReadme"></div><div class="note" id="mapNote"></div></div>
       </div>
 
       <div class="panel reveal" id="detailPanel">
-        <div class="phead"><h3 id="detailTitle">Precinct detail</h3></div>
+        <div class="phead"><h3 id="detailTitle">Precinct detail</h3>
+          <button class="pclear" id="detailClear" style="display:none">&times; clear</button></div>
         <div class="body" id="detailBody"><div class="detailempty">Click any precinct on the map to open its dossier &mdash; trend and top offenses.</div></div>
       </div>
     </div>
@@ -274,13 +364,22 @@
       <div class="panel reveal">
         <div class="phead"><h3>Filter offenses<span class="info" data-tip="<strong>Filter offenses</strong><br>These choices drive the map, the ranking and the comparison charts. Tick individual offenses, type to search by name, or use the buttons to pick a whole group.">i</span></h3></div>
         <div class="body">
-          <input type="search" id="offSearch" placeholder="Search offenses (e.g. drugs) — or type a year (e.g. 2020)" style="width:100%">
-          <div class="note" id="searchHint" style="margin:5px 0 0">Type an offense name to filter the list, or type a year (2015&ndash;2026) to jump the map and ranking to that year.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="search" id="offSearch" placeholder="Search offenses (e.g. drugs, larceny)" style="flex:1;min-width:150px" aria-label="Search offenses by name">
+            <select id="yearJump" title="Jump the map and ranking to a year" aria-label="Jump to year"></select>
+          </div>
           <div class="pickbtns">
             <button data-pick="proactive" data-tip="Show only the enforcement-sensitive (proactively policed) offenses.">Only enforcement-sensitive</button>
             <button data-pick="victim" data-tip="Show only the complaint-driven (victim-reported) offenses.">Only complaint-driven</button>
             <button data-pick="all" data-tip="Select every offense type.">All</button>
             <button data-pick="none" data-tip="Clear the selection. Nothing shows on the map until you pick at least one offense.">Clear</button>
+          </div>
+          <div class="offbar">
+            <span id="offSummary"></span>
+            <span class="offsort" role="group" aria-label="Sort offenses">
+              <button data-sort="count" aria-pressed="true" data-tip="Sort each group by incident count, highest first.">Count</button>
+              <button data-sort="name" aria-pressed="false" data-tip="Sort each group alphabetically.">A&ndash;Z</button>
+            </span>
           </div>
           <div class="offwrap" id="offWrap"></div>
         </div>
@@ -290,9 +389,10 @@
         <div class="phead"><h3>Citywide trend, by offense group</h3>
           <label class="tog"><input type="checkbox" id="zeroGroup" checked> zero axis</label></div>
         <div class="body">
-          <div class="note" style="margin-bottom:8px">Counts for the current lens and offense level. Dashed 2026 = Q1 only.</div>
+          <div class="note" id="groupNote" style="margin-bottom:8px"></div>
           <div id="groupTrend"></div>
           <div class="chartlegend" id="groupLegend"></div>
+          <div class="minihelp"><b>How to read this:</b> three lines, one per offense family. The gap between the red (enforcement-sensitive) and blue (complaint-driven) lines is the heart of the story. Dashed segment to 2026 is the first quarter only.</div>
         </div>
       </div>
     </div>
@@ -303,11 +403,11 @@
     <div class="phead"><h3>Two lenses, one selection</h3>
       <label class="tog"><input type="checkbox" id="zeroCompare" checked> zero axis</label></div>
     <div class="body">
-      <div class="note" style="margin-bottom:8px">Citywide totals for the offenses you have selected (currently
-        <strong id="compareSelLabel">all offenses</strong>), shown for both lenses. Use
-        <em>Only enforcement-sensitive</em> in the filter to isolate proactively policed offenses &mdash; where the
-        arrest line (enforcement) and complaint line (reports) diverge, recorded counts are driven by police activity
-        rather than public reporting. Dashed segment to 2026 is the first quarter only.</div>
+      <div class="note" id="compareNote" style="margin-bottom:8px">Citywide totals for the offenses you have selected (currently
+        <strong id="compareSelLabel">all offenses</strong>), shown for both lenses. Dashed segment to 2026 is the first quarter only.</div>
+      <div class="callout">Where the arrest line (enforcement) and the complaint line (reports) diverge,
+        <b>recorded counts are being driven by police activity rather than public reporting.</b>
+        Use <em>Only enforcement-sensitive</em> in the filter to isolate the proactively policed offenses where this gap is widest.</div>
       <div id="compareChart"></div>
       <div class="chartlegend" id="compareLegend"></div>
     </div>
@@ -319,9 +419,10 @@
       <div class="phead"><h3>Borough trends</h3>
         <label class="tog"><input type="checkbox" id="zeroBoro" checked> zero axis</label></div>
       <div class="body">
-        <div class="note" style="margin-bottom:8px">Current selection over time, by borough.</div>
+        <div class="note" id="boroNote" style="margin-bottom:8px">Current selection over time, by borough.</div>
         <div id="boroChart"></div>
         <div class="chartlegend" id="boroLegend"></div>
+        <div class="minihelp"><b>How to read this:</b> one line per borough for your current selection. Line colors match the borough colors in the ranking bars on the right.</div>
       </div>
     </div>
     <div class="panel reveal">
@@ -344,8 +445,9 @@
           <select id="trendOffense"></select>
         </div>
         <div class="ctl">
-          <label>Add a precinct (up to 3)<span class="info" data-tip="Pick precincts to compare. Each becomes a line on the chart. You can also keep Citywide on as a baseline.">i</span></label>
-          <select id="trendPctSelect"></select>
+          <label>Add a precinct (up to 3)<span class="info" data-tip="Type a precinct number or a borough name and pick from the list. Each precinct becomes a line. Keep Citywide on as a baseline.">i</span></label>
+          <input id="trendPctInput" list="pctDatalist" placeholder="Type 75 or Brooklyn…" autocomplete="off" aria-label="Add a precinct to compare" style="min-width:200px">
+          <datalist id="pctDatalist"></datalist>
         </div>
         <label class="tog2"><input type="checkbox" id="trendCity" checked> Citywide line</label>
       </div>
@@ -353,6 +455,7 @@
       <div class="note" id="trendNote" style="margin-bottom:8px"></div>
       <div id="trendChart"></div>
       <div class="chartlegend" id="trendLegend"></div>
+      <div class="minihelp"><b>How to read this:</b> each line is one place. Add up to three precincts to compare them against each other and the citywide baseline. Click a chip's &times; to remove it.</div>
     </div>
   </div>
 
@@ -385,6 +488,6 @@
 <div class="tip" id="tip"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
