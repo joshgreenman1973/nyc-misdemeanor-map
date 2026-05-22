@@ -119,6 +119,17 @@
   report; arrest data measures <em>police activity</em>, not the amount of crime occurring. Neither is a direct
   measure of how much low-level offending actually happens.</p>
 
+  <h2>The complaint-to-arrest ratio view</h2>
+  <p>The map's third shading option divides each precinct's complaints by its arrests (for the selected offenses
+  and offense level, in the selected year, using both lenses at once). A high ratio means reporting outpaces
+  enforcement; a low ratio means the precinct is enforcement-heavy relative to how much is reported.</p>
+  <p>Because complaints structurally outnumber arrests almost everywhere, the diverging color scale is
+  <strong>centered on the citywide ratio for that year and selection</strong> (about 2.4 complaints per arrest
+  citywide in 2025), not on 1.0. Red shades a precinct that is more arrest-heavy than the city as a whole; blue
+  shades one that is more complaint-heavy. The scale spans roughly 1.8&times; either side of the city average on a
+  log scale. Precincts with zero arrests for the selection are treated as maximally complaint-heavy; precincts with
+  no records are left uncolored.</p>
+
   <h2>Geographic method</h2>
   <ul>
     <li>Incidents are aggregated to the precinct of occurrence (<code>ADDR_PCT_CD</code> for complaints,

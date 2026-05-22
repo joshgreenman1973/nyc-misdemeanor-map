@@ -5,9 +5,11 @@ misdemeanors and violations — with two lenses (**complaints** = reported crime
 enforcement activity) and an enforcement-sensitivity breakout that separates proactively policed
 offenses from victim-reported ones.
 
-Features: precinct choropleth (incident count or enforcement-sensitive share), year slider with
-play-through, offense search/filter, citywide trend by offense group, a reported-vs-enforced
-comparison, borough trends, precinct ranking, and per-precinct drill-down.
+Features: precinct choropleth with three shadings — incident count, enforcement-sensitive share, and a
+**complaint-to-arrest ratio** (diverging scale centered on the citywide ratio) — plus a year slider with
+play-through, offense search/filter, citywide trend by offense group, a reported-vs-enforced comparison,
+borough trends, precinct ranking, and per-precinct drill-down. Design: an editorial "precinct ledger" with a
+dark map inset (Fraunces + IBM Plex).
 
 ## Data
 

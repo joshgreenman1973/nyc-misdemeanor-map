@@ -3,125 +3,197 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>New York City misdemeanors and violations, 2015 – Q1 2026</title>
+<title>The Precinct Ledger — New York City misdemeanors and violations, 2015 – Q1 2026</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --paper:#f6f3ec; --card:#fffdf8; --ink:#1b1b1a; --muted:#6f6b63;
-    --line:#1b1b1a; --hair:#d9d3c6;
-    --proactive:#c1432f;   /* enforcement-sensitive */
-    --victim:#2f6b8f;      /* complaint-driven */
-    --other:#9a9488;       /* mixed / administrative */
-    --accent:#c1432f;
+    --paper:#ece4d3; --paper2:#e3d9c4; --card:#f5efe2; --ink:#16130c; --ink2:#322c1f;
+    --muted:#6c6450; --rule:#16130c; --hair:#c7bca2;
+    --hot:#c8341f;      /* enforcement / arrests */
+    --cool:#1f5f7a;     /* complaints / reported */
+    --other:#9a8f73;
+    --gold:#b08328;
+    --mapbg:#15110a;
+    --serif:'Fraunces',Georgia,serif;
+    --sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--paper);color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-    font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
-  h1,h2,h3{line-height:1.12;margin:0;font-weight:700;letter-spacing:-0.01em}
-  .num{font-family:Georgia,"Times New Roman",serif;font-variant-numeric:tabular-nums}
-  a{color:var(--accent)}
-  .wrap{max-width:1280px;margin:0 auto;padding:0 18px}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  body{background-image:
+    radial-gradient(circle at 12% 8%, rgba(200,52,31,.05), transparent 36%),
+    radial-gradient(circle at 88% 4%, rgba(31,95,122,.06), transparent 40%);}
+  /* grain overlay */
+  body::before{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.05;
+    mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
 
-  header.top{border-bottom:2px solid var(--line);background:var(--paper);
-    position:sticky;top:0;z-index:1000}
-  header.top .wrap{padding-top:14px;padding-bottom:12px}
-  .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
-  h1{font-size:clamp(22px,3.4vw,34px);margin-top:4px}
-  .sub{color:var(--muted);font-size:13.5px;margin-top:6px;max-width:760px}
+  a{color:var(--hot);text-underline-offset:2px}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 26px}
+  .mono{font-family:var(--mono)} .serif{font-family:var(--serif)}
+  .num{font-family:var(--serif);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 
-  /* control bar */
-  .controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;
-    padding:14px 0 4px}
-  .ctl{display:flex;flex-direction:column;gap:5px}
-  .ctl > label{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
-    color:var(--muted);font-weight:700}
-  .seg{display:inline-flex;border:1.5px solid var(--line);background:var(--card)}
-  .seg button{border:0;background:transparent;padding:7px 12px;font:inherit;font-size:13px;
-    cursor:pointer;color:var(--ink);border-right:1.5px solid var(--line)}
+  /* ---------- masthead ---------- */
+  header.top{border-bottom:3px solid var(--rule);background:linear-gradient(180deg,var(--paper),var(--paper2));
+    position:relative;overflow:hidden}
+  header.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;
+    background:repeating-linear-gradient(90deg,var(--ink) 0 14px,transparent 14px 28px);opacity:.18}
+  .dateline{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
+    font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);
+    padding:11px 0 9px;border-bottom:1px solid var(--hair)}
+  .dateline b{color:var(--ink);font-weight:600}
+  h1.masthead{font-family:var(--serif);font-weight:900;font-size:clamp(34px,7vw,82px);line-height:.92;
+    letter-spacing:-.02em;margin:16px 0 8px;font-variation-settings:'opsz' 144,'SOFT' 0,'WONK' 1}
+  h1.masthead em{font-style:italic;font-weight:500;color:var(--hot)}
+  .standfirst{font-family:var(--serif);font-size:clamp(15px,1.7vw,19px);font-weight:400;font-style:italic;
+    max-width:740px;color:var(--ink2);margin:0 0 4px;line-height:1.4}
+  .standfirst b{font-style:normal;font-weight:600}
+  .twolens{display:flex;gap:0;margin:14px 0 4px;flex-wrap:wrap}
+  .twolens span{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:4px 12px 4px 14px;
+    border-left:3px solid;text-transform:uppercase}
+  .twolens .l-c{border-color:var(--cool);color:var(--cool)}
+  .twolens .l-a{border-color:var(--hot);color:var(--hot)}
+
+  /* ---------- control rail ---------- */
+  .controls{display:flex;flex-wrap:wrap;gap:16px 26px;align-items:flex-end;padding:16px 0 18px;
+    border-top:1px solid var(--hair);margin-top:14px}
+  .ctl{display:flex;flex-direction:column;gap:6px}
+  .ctl > label{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);font-weight:500}
+  .seg{display:inline-flex;border:1.5px solid var(--rule);background:var(--card);
+    box-shadow:3px 3px 0 var(--ink)}
+  .seg button{border:0;background:transparent;padding:8px 13px;font-family:var(--mono);font-size:12px;
+    letter-spacing:.02em;cursor:pointer;color:var(--ink);border-right:1.5px solid var(--rule);transition:background .12s}
   .seg button:last-child{border-right:0}
+  .seg button:hover{background:var(--paper2)}
   .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-  select,input[type=search]{font:inherit;font-size:13px;padding:7px 8px;border:1.5px solid var(--line);
+  select,input[type=search]{font-family:var(--mono);font-size:12.5px;padding:8px 9px;border:1.5px solid var(--rule);
     background:var(--card);color:var(--ink)}
+  input[type=search]:focus{outline:2px solid var(--hot);outline-offset:1px}
+  .yearbox{min-width:280px;flex:1}
+  .yearrow{display:flex;align-items:center;gap:12px}
+  .yearrow input[type=range]{flex:1;accent-color:var(--hot);height:4px}
+  .yearval{font-family:var(--serif);font-weight:700;font-size:22px;min-width:108px;text-align:right}
+  .playbtn{border:1.5px solid var(--rule);background:var(--card);cursor:pointer;width:34px;height:34px;
+    font-size:13px;box-shadow:2px 2px 0 var(--ink)}
+  .playbtn:active{transform:translate(2px,2px);box-shadow:none}
 
-  /* year slider */
-  .yearbox{min-width:260px;flex:1}
-  .yearrow{display:flex;align-items:center;gap:10px}
-  .yearrow input[type=range]{flex:1;accent-color:var(--accent)}
-  .yearval{font-weight:700;min-width:96px;text-align:right}
-  .playbtn{border:1.5px solid var(--line);background:var(--card);cursor:pointer;
-    width:30px;height:30px;font-size:13px}
+  /* ---------- section dividers ---------- */
+  .sect{display:flex;align-items:baseline;gap:14px;margin:34px 0 14px}
+  .sect .no{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--hot);font-weight:600}
+  .sect h2{font-family:var(--serif);font-weight:600;font-size:clamp(20px,2.6vw,30px);letter-spacing:-.01em;line-height:1}
+  .sect .rule{flex:1;height:0;border-top:1.5px solid var(--rule);align-self:center}
 
-  /* KPI cards */
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
-  .kpi{background:var(--card);border:1.5px solid var(--line);padding:12px 14px}
-  .kpi .lab{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
-  .kpi .val{font-size:30px;margin-top:4px;font-weight:700}
-  .kpi .meta{font-size:12px;color:var(--muted);margin-top:2px}
-  .up{color:var(--proactive)} .down{color:#2c7a4b}
+  /* ---------- panels ---------- */
+  .panel{background:var(--card);border:1.5px solid var(--rule);box-shadow:5px 5px 0 rgba(22,19,12,.14);
+    padding:0;margin-bottom:22px}
+  .panel .body{padding:16px 18px}
+  .panel .phead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:9px 16px;border-bottom:1.5px solid var(--rule);background:var(--ink);color:var(--paper)}
+  .panel .phead h3{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:0}
+  .panel .phead .tog{color:var(--paper)}
+  .note{font-size:12.5px;color:var(--muted);line-height:1.45}
+  .note em{color:var(--ink2)} .note strong{color:var(--ink)}
 
-  /* layout */
-  .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start}
-  .panel{background:var(--card);border:1.5px solid var(--line);padding:14px 16px;margin-bottom:18px}
-  .panel h2{font-size:16px} .panel h3{font-size:14px}
-  .panel .note{font-size:12px;color:var(--muted);margin-top:3px}
-  .panelhd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  /* ---------- KPI ledger ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);border:1.5px solid var(--rule);
+    background:var(--card);box-shadow:5px 5px 0 rgba(22,19,12,.14);margin:6px 0 4px}
+  .kpi{padding:14px 16px 12px;border-right:1.5px solid var(--rule);position:relative}
+  .kpi:last-child{border-right:0}
+  .kpi .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .kpi .val{font-family:var(--serif);font-size:clamp(28px,3.4vw,40px);font-weight:700;line-height:1;margin:8px 0 3px;
+    font-variation-settings:'opsz' 80}
+  .kpi .meta{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+  .kpi .accent{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .up{color:var(--hot)} .down{color:#2c7a4b}
 
-  #map{height:560px;border:1.5px solid var(--line);background:#eee}
-  .legend{display:flex;gap:0;margin-top:8px;font-size:11px;align-items:center;flex-wrap:wrap}
-  .legend .sw{display:flex;align-items:center}
-  .legend .box{width:26px;height:12px;display:inline-block}
-  .legend .lbls{display:flex;justify-content:space-between;width:100%;color:var(--muted);margin-top:2px}
+  .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:22px;align-items:start}
+
+  /* ---------- map ---------- */
+  #map{height:600px;border-bottom:1.5px solid var(--rule);background:var(--mapbg)}
+  .leaflet-container{background:var(--mapbg)!important;font-family:var(--mono)}
+  .legend{display:flex;flex-direction:column;gap:3px;padding:12px 16px;background:var(--ink);color:var(--paper)}
+  .legend .ramp{display:flex;height:13px;width:100%}
+  .legend .ramp span{flex:1}
+  .legend .lbls{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;
+    letter-spacing:.06em;color:#cabfa6}
+  .legend .cap{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8d846c;margin-bottom:2px}
 
   /* offense picker */
-  .offwrap{max-height:300px;overflow:auto;border:1px solid var(--hair);padding:6px 8px;background:var(--paper)}
-  .offgrp{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin:8px 0 3px;
-    display:flex;align-items:center;gap:6px}
+  .offwrap{max-height:320px;overflow:auto;border:1px solid var(--hair);padding:6px 8px;background:var(--paper)}
+  .offgrp{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;
+    margin:9px 0 3px;display:flex;align-items:center;gap:7px}
   .offgrp .dot{width:9px;height:9px;border-radius:50%}
-  .offrow{display:flex;align-items:center;gap:7px;font-size:12.5px;padding:1px 0}
+  .offrow{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:1.5px 0}
   .offrow label{flex:1;cursor:pointer}
-  .offrow .c{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px}
-  .pickbtns{display:flex;gap:8px;margin:6px 0;flex-wrap:wrap}
-  .pickbtns button{font:inherit;font-size:11.5px;border:1.5px solid var(--line);background:var(--card);
-    padding:4px 9px;cursor:pointer}
+  .offrow .c{color:var(--muted);font-family:var(--mono);font-size:11px}
+  .pickbtns{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+  .pickbtns button{font-family:var(--mono);font-size:11px;letter-spacing:.02em;border:1.5px solid var(--rule);
+    background:var(--card);padding:5px 10px;cursor:pointer;transition:all .12s}
+  .pickbtns button:hover{background:var(--ink);color:var(--paper)}
 
   /* charts */
   svg.chart{width:100%;height:auto;display:block;overflow:visible}
-  .chart text{font-family:inherit}
-  .axislab{fill:var(--muted);font-size:10px}
+  .axislab{fill:var(--muted);font-family:var(--mono);font-size:9.5px;letter-spacing:.03em}
   .gridline{stroke:var(--hair);stroke-width:1}
-  .evline{stroke:var(--muted);stroke-dasharray:3 3;stroke-width:1}
-  .evlab{fill:var(--muted);font-size:9px}
-  .chartlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:6px}
-  .chartlegend span{display:inline-flex;align-items:center;gap:5px}
-  .chartlegend i{width:14px;height:3px;display:inline-block}
-  .tog{font-size:12px;display:inline-flex;gap:6px;align-items:center;color:var(--muted);cursor:pointer}
+  .evline{stroke:var(--gold);stroke-dasharray:2 4;stroke-width:1;opacity:.7}
+  .evlab{fill:var(--gold);font-family:var(--mono);font-size:9px}
+  .chartlegend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;margin-top:8px;letter-spacing:.02em}
+  .chartlegend span{display:inline-flex;align-items:center;gap:6px}
+  .chartlegend i{width:16px;height:3px;display:inline-block}
+  .tog{font-family:var(--mono);font-size:11px;display:inline-flex;gap:6px;align-items:center;color:var(--muted);cursor:pointer;letter-spacing:.04em}
 
   table.rank{width:100%;border-collapse:collapse;font-size:12.5px}
-  table.rank th,table.rank td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--hair)}
-  table.rank td.n{text-align:right;font-variant-numeric:tabular-nums}
-  .bar{height:9px;background:var(--accent);display:inline-block;vertical-align:middle}
+  table.rank th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  table.rank th,table.rank td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--hair)}
+  table.rank td.n{text-align:right;font-family:var(--mono)}
+  table.rank tr[data-p]:hover{background:var(--paper2)}
+  .bar{height:9px;display:inline-block;vertical-align:middle}
 
   .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);
-    padding:5px 8px;font-size:11.5px;border-radius:3px;z-index:2000;opacity:0;transition:opacity .08s;max-width:240px}
+    padding:7px 10px;font-family:var(--mono);font-size:11px;line-height:1.5;z-index:2000;opacity:0;
+    transition:opacity .08s;max-width:250px;border-left:3px solid var(--hot)}
+  .tip strong{font-family:var(--sans);font-weight:600}
 
-  footer{border-top:2px solid var(--line);margin-top:24px;padding:18px 0 40px;font-size:12.5px;color:var(--muted)}
-  footer a{color:var(--accent)}
-  .pill{display:inline-block;border:1px solid var(--hair);border-radius:999px;padding:1px 8px;font-size:11px;margin:2px 3px 0 0}
-  .detailempty{color:var(--muted);font-size:13px;font-style:italic}
-  @media(max-width:900px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}#map{height:420px}}
+  .pill{display:inline-block;border:1px solid var(--hair);border-radius:0;padding:1px 7px;
+    font-family:var(--mono);font-size:10px;margin:2px 3px 0 0}
+  .detailempty{color:var(--muted);font-style:italic;font-size:13px}
+
+  footer{border-top:3px solid var(--rule);margin-top:34px;padding:22px 0 56px;font-size:12.5px;color:var(--muted)}
+  footer a{color:var(--hot)} footer strong{color:var(--ink);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+
+  /* entrance */
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .reveal{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+  @media(prefers-reduced-motion:reduce){.reveal{animation:none}}
+
+  @media(max-width:900px){
+    .grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}
+    .kpi:nth-child(2){border-right:0}.kpi:nth-child(1),.kpi:nth-child(2){border-bottom:1.5px solid var(--rule)}
+    #map{height:440px}
+  }
 </style>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="kicker">New York City Open Data &middot; NYPD complaints &amp; arrests</div>
-    <h1>Misdemeanors and violations across New York City, 2015 – Q1 2026</h1>
-    <div class="sub">A precinct-level map of New York City's lowest-level offenses, with two lenses:
-      <strong>complaints</strong> (crime reported to police) and <strong>arrests</strong> (enforcement activity).
-      Offenses are grouped to separate enforcement-sensitive, proactively policed offenses from victim-reported ones.
-      2026 covers the first quarter only.</div>
+    <div class="dateline">
+      <span>New York City &middot; <b>NYPD complaints &amp; arrests</b></span>
+      <span>Misdemeanors &amp; violations only &middot; <b>Felonies excluded</b></span>
+      <span>2015 &mdash; <b>Q1 2026</b></span>
+    </div>
+    <h1 class="masthead">The Precinct <em>Ledger</em></h1>
+    <p class="standfirst">New York City's lowest-level offenses, mapped across all 78 police precincts &mdash; read two ways.
+      <b>What the public reports</b>, and <b>what the police act on.</b> The gap between them is where enforcement strategy lives.</p>
+    <div class="twolens">
+      <span class="l-c">Complaints = reported crime</span>
+      <span class="l-a">Arrests = enforcement activity</span>
+    </div>
 
     <div class="controls">
       <div class="ctl">
@@ -135,19 +207,20 @@
         <label>Offense level</label>
         <div class="seg" id="lawSeg">
           <button data-v="all" aria-pressed="true">All</button>
-          <button data-v="0" aria-pressed="false">Misdemeanor</button>
+          <button data-v="0" aria-pressed="false">Misd.</button>
           <button data-v="1" aria-pressed="false">Violation</button>
         </div>
       </div>
       <div class="ctl">
-        <label>Map shows</label>
+        <label>Map shading</label>
         <div class="seg" id="metricSeg">
-          <button data-v="count" aria-pressed="true">Incident count</button>
-          <button data-v="share" aria-pressed="false">Enforcement-sensitive share</button>
+          <button data-v="count" aria-pressed="true">Count</button>
+          <button data-v="share" aria-pressed="false">Enforcement share</button>
+          <button data-v="ratio" aria-pressed="false">Complaint : arrest</button>
         </div>
       </div>
       <div class="ctl yearbox">
-        <label>Year (map &amp; ranking)</label>
+        <label>Year &mdash; map &amp; ranking</label>
         <div class="yearrow">
           <button class="playbtn" id="playBtn" title="Play through years">&#9658;</button>
           <input type="range" id="yearSlider" min="0" max="0" value="0" step="1">
@@ -159,99 +232,104 @@
 </header>
 
 <main class="wrap">
-  <div class="kpis" id="kpis"></div>
+  <div class="sect reveal"><span class="no">§01</span><h2>The ledger at a glance</h2><span class="rule"></span></div>
+  <div class="kpis reveal" id="kpis"></div>
 
+  <div class="sect reveal"><span class="no">§02</span><h2>The map</h2><span class="rule"></span></div>
   <div class="grid">
     <div>
-      <div class="panel">
-        <div class="panelhd">
-          <div>
-            <h2 id="mapTitle">Incident count by precinct</h2>
-            <div class="note" id="mapNote"></div>
-          </div>
-        </div>
+      <div class="panel reveal">
+        <div class="phead"><h3 id="mapTitle">Incident count by precinct</h3></div>
         <div id="map"></div>
         <div class="legend" id="legend"></div>
+        <div class="body"><div class="note" id="mapNote"></div></div>
       </div>
 
-      <div class="panel" id="detailPanel">
-        <div class="panelhd"><h2 id="detailTitle">Precinct detail</h2></div>
-        <div id="detailBody"><div class="detailempty">Click a precinct on the map to see its trend and top offenses.</div></div>
+      <div class="panel reveal" id="detailPanel">
+        <div class="phead"><h3 id="detailTitle">Precinct detail</h3></div>
+        <div class="body" id="detailBody"><div class="detailempty">Click any precinct on the map to open its dossier &mdash; trend and top offenses.</div></div>
       </div>
     </div>
 
     <div>
-      <div class="panel">
-        <div class="panelhd"><h3>Filter offenses</h3></div>
-        <input type="search" id="offSearch" placeholder="Search offenses (e.g. drugs, larceny, trespass)" style="width:100%">
-        <div class="pickbtns">
-          <button data-pick="proactive">Only enforcement-sensitive</button>
-          <button data-pick="victim">Only complaint-driven</button>
-          <button data-pick="all">Select all</button>
-          <button data-pick="none">Clear</button>
+      <div class="panel reveal">
+        <div class="phead"><h3>Filter offenses</h3></div>
+        <div class="body">
+          <input type="search" id="offSearch" placeholder="Search offenses — e.g. drugs, larceny, trespass" style="width:100%">
+          <div class="pickbtns">
+            <button data-pick="proactive">Only enforcement-sensitive</button>
+            <button data-pick="victim">Only complaint-driven</button>
+            <button data-pick="all">All</button>
+            <button data-pick="none">Clear</button>
+          </div>
+          <div class="offwrap" id="offWrap"></div>
         </div>
-        <div class="offwrap" id="offWrap"></div>
       </div>
 
-      <div class="panel">
-        <div class="panelhd">
-          <h3>Citywide trend, by offense group</h3>
-          <label class="tog"><input type="checkbox" id="zeroGroup" checked> y-axis from zero</label>
+      <div class="panel reveal">
+        <div class="phead"><h3>Citywide trend, by offense group</h3>
+          <label class="tog"><input type="checkbox" id="zeroGroup" checked> zero axis</label></div>
+        <div class="body">
+          <div class="note" style="margin-bottom:8px">Counts for the current lens and offense level. Dashed 2026 = Q1 only.</div>
+          <div id="groupTrend"></div>
+          <div class="chartlegend" id="groupLegend"></div>
         </div>
-        <div class="note">Counts for the current lens and offense level. Dashed 2026 = Q1 only.</div>
-        <div id="groupTrend"></div>
-        <div class="chartlegend" id="groupLegend"></div>
       </div>
     </div>
   </div>
 
-  <div class="panel">
-    <div class="panelhd">
-      <h2>Reported vs enforced</h2>
-      <label class="tog"><input type="checkbox" id="zeroCompare" checked> y-axis from zero</label>
+  <div class="sect reveal"><span class="no">§03</span><h2>Reported vs enforced</h2><span class="rule"></span></div>
+  <div class="panel reveal">
+    <div class="phead"><h3>Two lenses, one selection</h3>
+      <label class="tog"><input type="checkbox" id="zeroCompare" checked> zero axis</label></div>
+    <div class="body">
+      <div class="note" style="margin-bottom:8px">Citywide totals for the offenses you have selected (currently
+        <strong id="compareSelLabel">all offenses</strong>), shown for both lenses. Use
+        <em>Only enforcement-sensitive</em> in the filter to isolate proactively policed offenses &mdash; where the
+        arrest line (enforcement) and complaint line (reports) diverge, recorded counts are driven by police activity
+        rather than public reporting. Dashed segment to 2026 is the first quarter only.</div>
+      <div id="compareChart"></div>
+      <div class="chartlegend" id="compareLegend"></div>
     </div>
-    <div class="note">Citywide totals for the offenses you have selected (currently
-      <strong id="compareSelLabel">all offenses</strong>), shown for both lenses. Use
-      <em>Only enforcement-sensitive</em> in the offense filter to isolate proactively policed offenses — where
-      the arrest line (enforcement) and complaint line (reports) diverge, recorded counts are driven by police
-      activity rather than public reporting. Dashed segment to 2026 is the first quarter only.</div>
-    <div id="compareChart"></div>
-    <div class="chartlegend" id="compareLegend"></div>
   </div>
 
+  <div class="sect reveal"><span class="no">§04</span><h2>Across the city</h2><span class="rule"></span></div>
   <div class="grid">
-    <div class="panel">
-      <div class="panelhd">
-        <h2>Borough trends</h2>
-        <label class="tog"><input type="checkbox" id="zeroBoro" checked> y-axis from zero</label>
+    <div class="panel reveal">
+      <div class="phead"><h3>Borough trends</h3>
+        <label class="tog"><input type="checkbox" id="zeroBoro" checked> zero axis</label></div>
+      <div class="body">
+        <div class="note" style="margin-bottom:8px">Current selection over time, by borough.</div>
+        <div id="boroChart"></div>
+        <div class="chartlegend" id="boroLegend"></div>
       </div>
-      <div class="note">Current selection over time, by borough.</div>
-      <div id="boroChart"></div>
-      <div class="chartlegend" id="boroLegend"></div>
     </div>
-    <div class="panel">
-      <div class="panelhd"><h2 id="rankTitle">Precinct ranking</h2></div>
-      <div class="note" id="rankNote"></div>
-      <div id="rankTable"></div>
+    <div class="panel reveal">
+      <div class="phead"><h3 id="rankTitle">Precinct ranking</h3></div>
+      <div class="body">
+        <div class="note" id="rankNote" style="margin-bottom:8px"></div>
+        <div id="rankTable"></div>
+      </div>
     </div>
   </div>
 
-  <div class="panel">
-    <div class="panelhd"><h3>Context markers used in the charts</h3>
+  <div class="panel reveal">
+    <div class="phead"><h3>Context markers used in the charts</h3>
       <label class="tog"><input type="checkbox" id="showEvents" checked> show on charts</label></div>
-    <div class="note" id="eventList"></div>
+    <div class="body"><div class="note" id="eventList"></div></div>
   </div>
 </main>
 
 <footer>
   <div class="wrap">
-    <strong>Sources.</strong> NYPD Complaint Data (Historic <a href="https://data.cityofnewyork.us/d/qgea-i56i">qgea-i56i</a>,
+    <strong>Sources</strong><br>
+    NYPD Complaint Data (Historic <a href="https://data.cityofnewyork.us/d/qgea-i56i">qgea-i56i</a>,
     Current YTD <a href="https://data.cityofnewyork.us/d/5uac-w243">5uac-w243</a>) and NYPD Arrest Data
     (Historic <a href="https://data.cityofnewyork.us/d/8h9b-rp9u">8h9b-rp9u</a>, YTD <a href="https://data.cityofnewyork.us/d/uip8-fykc">uip8-fykc</a>),
     via New York City Open Data. Boundaries: NYPD police precincts (<a href="https://data.cityofnewyork.us/d/y76i-bdw7">y76i-bdw7</a>).
     Complaints dated by report date (RPT_DT); arrests by arrest date. Restricted to offense level misdemeanor and violation.
     2026 is the first quarter only (through March 31). Generated <span id="genDate"></span>.
-    <div style="margin-top:8px">
+    <div style="margin-top:10px">
       Full method, the enforcement-sensitivity classification, limitations and reproducible code:
       <a href="methodology.html">methodology</a> &middot;
       <a href="data/classification.csv">offense classification (CSV)</a> &middot;

@@ -1,11 +1,18 @@
 /* NYC misdemeanors & violations map. Vanilla JS + Leaflet + hand-rolled SVG charts. */
 'use strict';
 
-const GCOL = { proactive:'#c1432f', victim:'#2f6b8f', other:'#9a9488' };
+const HOT='#c8341f', COOL='#1f5f7a';
+const GCOL = { proactive:HOT, victim:COOL, other:'#9a8f73' };
 const GNAME = { proactive:'Enforcement-sensitive', victim:'Complaint-driven', other:'Other / mixed' };
-const BORO_COL = { 'Manhattan':'#c1432f','Brooklyn':'#2f4b7c','Queens':'#d4a017','Bronx':'#1f7a6b','Staten Island':'#7a4f9e' };
+const BORO_COL = { 'Manhattan':'#c8341f','Brooklyn':'#243f6b','Queens':'#b08328','Bronx':'#1f7a6b','Staten Island':'#6e4a86' };
 const BOROS = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
-const RAMP = ['#f3ead0','#e9c79a','#dd9a6c','#cc6a4b','#a83a2c','#6f1f14']; // cream -> deep red
+// luminous ember ramp for counts on the dark map
+const RAMP = ['#33240f','#6e3411','#a8481a','#d2691e','#e89a3c','#f4c46a','#fae6b0'];
+// diverging cool -> bone -> hot (enforcement-sensitive share: low=complaint areas, high=enforcement-heavy)
+const RAMP_SHARE = ['#1f5f7a','#5f93a3','#a9b8a8','#d8c79a','#d27a3c','#c8341f'];
+// diverging hot -> bone -> cool (complaint:arrest ratio: low=arrest-heavy, high=complaint-heavy)
+const RAMP_RATIO = ['#c8341f','#d27a3c','#dac79a','#a9b8a8','#5f93a3','#1f5f7a'];
+const NODATA='#241f17';
 
 const EVENTS = [
   { year:2018, label:'NYPD ends most marijuana-possession arrests' },
@@ -68,6 +75,20 @@ function perPrecinctShare(year){
   }
   const m={}; for(const p in tot){ m[p]= tot[p] ? (pro[p]||0)/tot[p] : 0; }
   return {share:m, tot};
+}
+// per-precinct complaint:arrest ratio in year (uses BOTH lenses; respects law + offense selection)
+function perPrecinctRatio(year){
+  const comp={}, arr={};
+  for(const r of DATA.complaints){ if(r[0]!==year||!passLaw(r)||!passSel(r)) continue; comp[r[1]]=(comp[r[1]]||0)+r[4]; }
+  for(const r of DATA.arrests){ if(r[0]!==year||!passLaw(r)||!passSel(r)) continue; arr[r[1]]=(arr[r[1]]||0)+r[4]; }
+  const ratio={}, raw={};
+  const pcts=new Set([...Object.keys(comp),...Object.keys(arr)]);
+  pcts.forEach(p=>{ const c=comp[p]||0, a=arr[p]||0;
+    raw[p]={c,a};
+    if(c===0 && a===0) return;            // no data
+    ratio[p] = a===0 ? 99 : (c/a);        // arrests=0 -> very complaint-heavy
+  });
+  return {ratio, raw, comp, arr};
 }
 // citywide series by group, per lens
 function groupSeries(lens){
@@ -171,7 +192,7 @@ function buildPicker(){
 /* ---------- map ---------- */
 function initMap(){
   map = L.map('map',{scrollWheelZoom:true, zoomControl:true}).setView([40.705,-73.93],10);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO', subdomains:'abcd', maxZoom:19
   }).addTo(map);
   geoLayer = L.geoJSON(geo,{
@@ -179,77 +200,93 @@ function initMap(){
     onEachFeature:(f,layer)=>{
       const p=f.properties.pct; byPctLayer[p]=layer;
       layer.on({
-        mouseover:e=>{ layer.setStyle({weight:2.5,color:'#1b1b1a'}); layer.bringToFront(); showPctTip(e,p); },
+        mouseover:e=>{ layer.setStyle({weight:2.2,color:'#f3e8c8'}); layer.bringToFront(); showPctTip(e,p); },
         mousemove:e=>moveTip(e),
-        mouseout:e=>{ geoLayer.resetStyle(layer); restyleOne(p); hideTip(); },
+        mouseout:e=>{ restyleOne(p); hideTip(); highlightSelected(); },
         click:()=>{ state.precinct=p; renderDetail(); highlightSelected(); }
       });
     }
   }).addTo(map);
 }
-function baseStyle(){ return {weight:0.7,color:'#9a9488',fillColor:'#eee',fillOpacity:0.85}; }
+function baseStyle(){ return {weight:0.6,color:'#4a4234',fillColor:NODATA,fillOpacity:0.9}; }
 
+// returns {kind, vals, ...domain info}
 function mapValues(){
-  if(state.metric==='share'){ const {share}=perPrecinctShare(state.year); return {vals:share, max:1, isShare:true}; }
+  if(state.metric==='share'){ const {share}=perPrecinctShare(state.year); return {kind:'share', vals:share}; }
+  if(state.metric==='ratio'){ const {ratio,comp,arr}=perPrecinctRatio(state.year);
+    let tc=0,ta=0; for(const p in comp) tc+=comp[p]; for(const p in arr) ta+=arr[p];
+    return {kind:'ratio', vals:ratio, center: ta? tc/ta : 1}; }
   const vals=perPrecinct(state.year); let max=0; for(const p in vals) max=Math.max(max,vals[p]);
-  return {vals, max, isShare:false};
+  return {kind:'count', vals, max};
 }
-let _scale={breaks:[],isShare:false,max:0};
+let _scale={breaks:[]};
+const LOGR=0.85; // log2 spread around the citywide ratio -> ≈1.8x either side of the norm
 function colorFor(v,info){
-  if(v==null) return '#eeece4';
-  if(info.isShare){ const idx=Math.min(RAMP.length-1, Math.floor(v*RAMP.length)); return RAMP[idx]; }
+  if(v==null || v===undefined) return NODATA;
+  if(info.kind==='share'){ const idx=Math.min(RAMP_SHARE.length-1, Math.floor(v*RAMP_SHARE.length)); return RAMP_SHARE[idx]; }
+  if(info.kind==='ratio'){ const center=info.center||1; let l=Math.log2(v)-Math.log2(center);
+    l=Math.max(-LOGR,Math.min(LOGR,l));
+    const t=(l+LOGR)/(2*LOGR); const idx=Math.min(RAMP_RATIO.length-1, Math.floor(t*RAMP_RATIO.length)); return RAMP_RATIO[idx]; }
   if(info.max<=0) return RAMP[0];
   for(let i=0;i<_scale.breaks.length;i++){ if(v<=_scale.breaks[i]) return RAMP[i]; }
   return RAMP[RAMP.length-1];
 }
 function computeBreaks(info){
-  if(info.isShare){ _scale={isShare:true}; return; }
+  if(info.kind!=='count'){ _scale={breaks:[]}; return; }
   const arr=Object.values(info.vals).filter(v=>v>0).sort((a,b)=>a-b);
   const breaks=[];
   for(let i=1;i<=RAMP.length;i++){ const q=arr.length?arr[Math.min(arr.length-1,Math.floor(arr.length*i/RAMP.length))]:0; breaks.push(q); }
-  _scale={breaks,isShare:false,max:info.max};
+  _scale={breaks,max:info.max};
 }
 function renderMap(){
   const info=mapValues(); computeBreaks(info); _mapInfo=info;
   for(const p in byPctLayer) restyleOne(p, info);
-  document.getElementById('mapTitle').textContent = state.metric==='share'
-    ? 'Enforcement-sensitive share of incidents, by precinct'
+  document.getElementById('mapTitle').textContent =
+    info.kind==='share' ? 'Enforcement-sensitive share of incidents, by precinct'
+    : info.kind==='ratio' ? 'Complaint-to-arrest ratio, by precinct'
     : 'Incident count by precinct';
-  document.getElementById('mapNote').textContent = mapNoteText();
+  document.getElementById('mapNote').innerHTML = mapNoteText(info);
   renderLegend(info);
   highlightSelected();
 }
 let _mapInfo=null;
 function restyleOne(p, info){ info=info||_mapInfo; if(!info||!byPctLayer[p]) return;
-  const v=info.vals[p]; byPctLayer[p].setStyle({fillColor:colorFor(v,info), weight:0.7, color:'#9a9488', fillOpacity:0.85}); }
+  const v=info.vals[p]; byPctLayer[p].setStyle({fillColor:colorFor(v,info), weight:0.6, color:'#4a4234', fillOpacity:0.9}); }
 function highlightSelected(){ if(state.precinct!=null && byPctLayer[state.precinct]){
-  const l=byPctLayer[state.precinct]; l.setStyle({weight:3,color:'#1b1b1a'}); l.bringToFront(); } }
-function mapNoteText(){
-  const lens = state.lens==='complaints'?'complaints (reported)':'arrests (enforcement)';
+  const l=byPctLayer[state.precinct]; l.setStyle({weight:2.6,color:'#fae6b0'}); l.bringToFront(); } }
+function mapNoteText(info){
   const law = state.law==='all'?'misdemeanors + violations':(state.law===0?'misdemeanors only':'violations only');
   const sel = state.offsel.size===DATA.offenses.length?'all offenses':`${state.offsel.size} selected offense type(s)`;
-  return `${lens} · ${law} · ${state.metric==='share'?'share is computed over all offenses':sel} · ${yearLabel(state.year)}`;
+  if(info.kind==='ratio') return `Both lenses · ${law} · ${sel} · ${yearLabel(state.year)}. <strong>Blue</strong> = more complaints than arrests (reporting outpaces enforcement); <strong style="color:var(--hot)">red</strong> = more arrests than complaints (enforcement-heavy). Lens toggle is ignored here.`;
+  const lens = state.lens==='complaints'?'complaints (reported)':'arrests (enforcement)';
+  if(info.kind==='share') return `${lens} · ${law} · share computed over all offenses · ${yearLabel(state.year)}`;
+  return `${lens} · ${law} · ${sel} · ${yearLabel(state.year)}`;
 }
+function rampDiv(arr){ return arr.map(c=>`<span style="background:${c}"></span>`).join(''); }
 function renderLegend(info){
-  const el=document.getElementById('legend');
-  if(info.isShare){
-    el.innerHTML = '<div style="width:100%"><div style="display:flex">'+
-      RAMP.map((c,i)=>`<span class="box" style="background:${c}"></span>`).join('')+
-      '</div><div class="lbls"><span>0%</span><span>50%</span><span>100% enforcement-sensitive</span></div></div>';
-  } else {
-    const b=_scale.breaks;
-    el.innerHTML = '<div style="width:100%"><div style="display:flex">'+
-      RAMP.map(c=>`<span class="box" style="background:${c}"></span>`).join('')+
-      '</div><div class="lbls"><span>0</span><span>'+fmt(b[Math.floor(b.length/2)]||0)+'</span><span>'+fmt(info.max)+' incidents</span></div></div>';
-  }
+  const el=document.getElementById('legend'); let cap,ramp,lbls;
+  if(info.kind==='share'){ cap='Enforcement-sensitive share'; ramp=rampDiv(RAMP_SHARE);
+    lbls='<span>0% · complaint areas</span><span>50%</span><span>100% · enforcement-heavy</span>'; }
+  else if(info.kind==='ratio'){ const c=(info.center||1);
+    cap=`Complaints per arrest · city average ${c.toFixed(1)}× (centered)`; ramp=rampDiv(RAMP_RATIO);
+    lbls='<span>more arrest-heavy</span><span>city average</span><span>more complaint-heavy</span>'; }
+  else { const b=_scale.breaks; cap='Incidents, '+yearLabel(state.year); ramp=rampDiv(RAMP);
+    lbls=`<span>0</span><span>${fmt(b[Math.floor(b.length/2)]||0)}</span><span>${fmt(info.max||0)}</span>`; }
+  el.innerHTML=`<div class="cap">${cap}</div><div class="ramp">${ramp}</div><div class="lbls">${lbls}</div>`;
 }
 function showPctTip(e,p){
   const info=_mapInfo; const meta=DATA.precincts.find(x=>x.pct===p)||{boro:''};
   let body;
-  if(info && info.isShare){ const {share,tot}=perPrecinctShare(state.year);
+  if(info && info.kind==='share'){ const {share,tot}=perPrecinctShare(state.year);
     body=`${pct1(share[p]||0)} enforcement-sensitive<br>${fmt(tot[p]||0)} total incidents`; }
+  else if(info && info.kind==='ratio'){ const {raw}=perPrecinctRatio(state.year); const d=raw[p]||{c:0,a:0};
+    const r = d.a? (d.c/d.a) : (d.c?Infinity:0); const c=info.center||1;
+    const ratioTxt = d.a? r.toFixed(1)+'× complaints per arrest' : (d.c?'arrests = 0':'no data');
+    let rel=''; if(d.a){ rel = r>c*1.05 ? '<br><span style="color:#9cc">more complaint-heavy than city</span>'
+      : r<c*0.95 ? '<br><span style="color:#e9a">more arrest-heavy than city</span>' : '<br>near city average'; }
+    body=`${fmt(d.c)} complaints · ${fmt(d.a)} arrests<br>${ratioTxt}${rel}`; }
   else { body=`${fmt((info&&info.vals[p])||0)} incidents`; }
-  tip.innerHTML=`<strong>Precinct ${p}</strong> · ${meta.boro}<br>${body}<br><span style="opacity:.7">${yearLabel(state.year)} · click for detail</span>`;
+  tip.innerHTML=`<strong>Precinct ${p}</strong> · ${meta.boro}<br>${body}<br><span style="opacity:.6">${yearLabel(state.year)} · click for detail</span>`;
   moveTip(e); tip.style.opacity=1;
 }
 function moveTip(e){ const ev=e.originalEvent||e; tip.style.left=(ev.pageX+14)+'px'; tip.style.top=(ev.pageY+12)+'px'; }
@@ -267,14 +304,15 @@ function renderKPIs(){
   else if(prev>0){ const d=(cur-prev)/prev; const cls=d>=0?'up':'down';
     chg=`<div class="meta ${cls}">${d>=0?'▲':'▼'} ${pct1(Math.abs(d))} vs ${yr-1}</div>`; }
   const boro=(DATA.precincts.find(x=>x.pct==topP)||{}).boro||'';
-  document.getElementById('kpis').innerHTML = card('Incidents, '+yearLabel(yr), fmt(cur),
-      state.offsel.size===DATA.offenses.length?'all offense types':state.offsel.size+' offense type(s)')
-    + card('Change', yr===2026?'—':(cur>=prev?'+':'−')+fmt(Math.abs(cur-prev)), '', chg)
-    + card('Enforcement-sensitive share', pct1(share), 'of all '+(state.lens)+' this year')
-    + card('Top precinct', topP?('#'+topP):'—', topP?(boro+' · '+fmt(topV)+' incidents'):'');
+  const lensCol = state.lens==='complaints'?COOL:HOT;
+  document.getElementById('kpis').innerHTML = card('Incidents · '+yearLabel(yr), fmt(cur),
+      state.offsel.size===DATA.offenses.length?'all offense types':state.offsel.size+' offense type(s)', null, lensCol)
+    + card('Change', yr===2026?'—':(cur>=prev?'+':'−')+fmt(Math.abs(cur-prev)), '', chg, yr===2026?'#9a8f73':(cur>=prev?HOT:'#2c7a4b'))
+    + card('Enforcement-sensitive share', pct1(share), 'of all '+(state.lens)+' this year', null, HOT)
+    + card('Top precinct', topP?('#'+topP):'—', topP?(boro+' · '+fmt(topV)+' incidents'):'', null, '#b08328');
 }
-function card(lab,val,meta,extra){ return `<div class="kpi"><div class="lab">${lab}</div>
-  <div class="val num">${val}</div>${extra||(meta?`<div class="meta">${meta}</div>`:'')}</div>`; }
+function card(lab,val,meta,extra,color){ return `<div class="kpi"><span class="accent" style="background:${color||HOT}"></span>
+  <div class="lab">${lab}</div><div class="val num">${val}</div>${extra||(meta?`<div class="meta">${meta}</div>`:'')}</div>`; }
 
 /* ---------- SVG line chart ---------- */
 function lineChart(elId, series, opt){
@@ -334,7 +372,7 @@ function renderGroupTrend(){
 }
 function renderCompare(){
   const c=selSeries('complaints'), a=selSeries('arrests');
-  const series=[ toSeries(c,'Complaints (reported)','#2f6b8f'), toSeries(a,'Arrests (enforcement)','#c1432f') ];
+  const series=[ toSeries(c,'Complaints (reported)',COOL), toSeries(a,'Arrests (enforcement)',HOT) ];
   lineChart('compareChart',series,{zero:state.zero.compare,height:260});
   legendHtml('compareLegend',series);
   const lbl=document.getElementById('compareSelLabel');
