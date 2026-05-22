@@ -99,6 +99,11 @@
   .panel .phead .tog{color:var(--paper)}
   .note{font-size:12.5px;color:var(--muted);line-height:1.45}
   .note em{color:var(--ink2)} .note strong{color:var(--ink)}
+  .readme{font-size:13.5px;line-height:1.55;color:var(--ink2);margin-bottom:8px;
+    border-left:3px solid var(--gold);padding:2px 0 2px 12px}
+  .readme b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--gold);margin-bottom:3px;font-weight:600}
+  .readme strong{color:var(--ink);font-weight:600} .readme em{font-style:italic}
 
   /* ---------- KPI ledger ---------- */
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);border:1.5px solid var(--rule);
@@ -160,6 +165,10 @@
     transition:opacity .08s;max-width:250px;border-left:3px solid var(--hot)}
   .tip strong{font-family:var(--sans);font-weight:600}
 
+  .info{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
+    border:1px solid currentColor;border-radius:50%;font-family:var(--serif);font-size:10px;font-style:italic;
+    font-weight:600;line-height:1;cursor:help;opacity:.55;vertical-align:middle;margin-left:5px}
+  .info:hover{opacity:1}
   .pill{display:inline-block;border:1px solid var(--hair);border-radius:0;padding:1px 7px;
     font-family:var(--mono);font-size:10px;margin:2px 3px 0 0}
   .detailempty{color:var(--muted);font-style:italic;font-size:13px}
@@ -216,9 +225,9 @@
       <div class="ctl">
         <label>Map shading</label>
         <div class="seg" id="metricSeg">
-          <button data-v="count" aria-pressed="true">Count</button>
-          <button data-v="share" aria-pressed="false">Enforcement share</button>
-          <button data-v="ratio" aria-pressed="false">Complaint : arrest</button>
+          <button data-v="count" aria-pressed="true" data-tip="<strong>Count</strong><br>Total recorded incidents in each precinct. Raw totals, not adjusted for population.">Count</button>
+          <button data-v="share" aria-pressed="false" data-tip="<strong>Enforcement-sensitive share</strong><br>What share of each precinct's incidents are proactively policed offenses (drugs, trespass, fare evasion, etc.) rather than victim-reported ones.">Enforcement share</button>
+          <button data-v="ratio" aria-pressed="false" data-tip="<strong>Complaint-to-arrest ratio</strong><br>Each precinct's complaints divided by its arrests, compared against the citywide average.">Complaint : arrest</button>
         </div>
       </div>
       <div class="ctl yearbox">
@@ -244,7 +253,7 @@
         <div class="phead"><h3 id="mapTitle">Incident count by precinct</h3></div>
         <div id="map"></div>
         <div class="legend" id="legend"></div>
-        <div class="body"><div class="note" id="mapNote"></div></div>
+        <div class="body"><div class="readme" id="mapReadme"></div><div class="note" id="mapNote"></div></div>
       </div>
 
       <div class="panel reveal" id="detailPanel">

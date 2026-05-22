@@ -4,6 +4,11 @@
 const HOT='#c8341f', COOL='#1f5f7a';
 const GCOL = { proactive:HOT, victim:COOL, other:'#9a8f73' };
 const GNAME = { proactive:'Enforcement-sensitive', victim:'Complaint-driven', other:'Other / mixed' };
+const GROUP_DEF = {
+  proactive:"<strong>Enforcement-sensitive</strong><br>Discretionary, officer-initiated offenses. An officer largely decides whether these become a record, so the counts rise and fall with proactive policing.<br><span style='opacity:.65'>e.g. drugs, criminal trespass, fare evasion, prostitution, disorderly conduct, weapon possession, DWI, traffic-law offenses.</span>",
+  victim:"<strong>Complaint-driven</strong><br>Offenses usually reported by a victim or witness rather than initiated by an officer, so the counts mostly track what people experience and report.<br><span style='opacity:.65'>e.g. petit larceny, assault 3, harassment, criminal mischief, sex crimes, fraud, stolen property.</span>",
+  other:"<strong>Other / mixed</strong><br>Administrative or ambiguous categories, plus offenses that arise from police contact itself (resisting, obstruction) and broad public-order codes.<br><span style='opacity:.65'>e.g. offenses against public administration, public order/sensibility, administrative code.</span>",
+};
 const BORO_COL = { 'Manhattan':'#c8341f','Brooklyn':'#243f6b','Queens':'#b08328','Bronx':'#1f7a6b','Staten Island':'#6e4a86' };
 const BOROS = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
 // luminous ember ramp for counts on the dark map
@@ -117,6 +122,14 @@ function offenseTotals(lens){ // total per oid across all years (for picker coun
 /* ---------- init ---------- */
 function init(){
   tip = document.getElementById('tip');
+  // delegated hover tooltips for any [data-tip] element (definitions, help glyphs)
+  ['mouseover','mousemove'].forEach(ev=>document.addEventListener(ev,e=>{
+    const el=e.target.closest && e.target.closest('[data-tip]'); if(!el) return;
+    if(ev==='mouseover'){ tip.innerHTML=el.getAttribute('data-tip'); tip.style.opacity=1; }
+    moveTip(e);
+  }));
+  document.addEventListener('mouseout',e=>{ const el=e.target.closest && e.target.closest('[data-tip]');
+    if(el && !el.contains(e.relatedTarget)) hideTip(); });
   document.getElementById('genDate').textContent = DATA.generated;
   DATA.offenses.forEach((o,i)=>state.offsel.add(i)); // default: all selected
 
@@ -172,7 +185,7 @@ function buildPicker(){
   let html='';
   ['proactive','victim','other'].forEach(g=>{
     if(!groups[g].length) return;
-    html+=`<div class="offgrp"><span class="dot" style="background:${GCOL[g]}"></span>${GNAME[g]}</div>`;
+    html+=`<div class="offgrp"><span class="dot" style="background:${GCOL[g]}"></span>${GNAME[g]}<span class="info" data-tip="${GROUP_DEF[g]}">i</span></div>`;
     groups[g].sort((a,b)=>(tot[b]||0)-(tot[a]||0)).forEach(i=>{
       const o=DATA.offenses[i];
       html+=`<div class="offrow"><input type="checkbox" data-oid="${i}" ${state.offsel.has(i)?'checked':''}>
@@ -245,9 +258,19 @@ function renderMap(){
     info.kind==='share' ? 'Enforcement-sensitive share of incidents, by precinct'
     : info.kind==='ratio' ? 'Complaint-to-arrest ratio, by precinct'
     : 'Incident count by precinct';
+  document.getElementById('mapReadme').innerHTML = mapExplainer(info);
   document.getElementById('mapNote').innerHTML = mapNoteText(info);
   renderLegend(info);
   highlightSelected();
+}
+function mapExplainer(info){
+  const lensW = state.lens==='complaints'?'complaints (crimes reported to police)':'arrests (people booked by police)';
+  if(info.kind==='count')
+    return `<b>How to read this</b>Darker precincts recorded <strong>more incidents</strong>. This shows ${lensW} for your selected offenses in ${yearLabel(state.year)} — raw totals, <em>not</em> adjusted for population, so larger and busier precincts tend to run higher. Hover a precinct for its number; click to open its dossier.`;
+  if(info.kind==='share')
+    return `<b>How to read this</b>Each precinct is shaded by the <strong>share of its incidents that are enforcement-sensitive</strong> — proactively policed offenses like drugs, trespass and fare evasion, as opposed to victim-reported ones. <span style="color:var(--hot)"><strong>Red</strong></span> = a bigger slice is officer-initiated; <span style="color:var(--cool)"><strong>blue</strong></span> = more is victim-reported. A 40% precinct means 40 of every 100 recorded incidents were enforcement-sensitive.`;
+  const c=(info.center||1).toFixed(1);
+  return `<b>How to read this</b>Each precinct's <strong>complaints divided by its arrests</strong>, using both datasets at once (the lens toggle is ignored here). Citywide there are about <strong>${c} complaints for every arrest</strong>, so the color scale is centered on ${c}×, not on 1. <span style="color:var(--hot)"><strong>Redder</strong></span> precincts make more arrests relative to what residents report (enforcement-heavy); <span style="color:var(--cool)"><strong>bluer</strong></span> precincts report more than police act on. Example: a precinct at 4× logs four complaints for each arrest — more complaint-heavy than the city; one at 1.5× is more arrest-heavy.`;
 }
 let _mapInfo=null;
 function restyleOne(p, info){ info=info||_mapInfo; if(!info||!byPctLayer[p]) return;
@@ -305,11 +328,20 @@ function renderKPIs(){
     chg=`<div class="meta ${cls}">${d>=0?'▲':'▼'} ${pct1(Math.abs(d))} vs ${yr-1}</div>`; }
   const boro=(DATA.precincts.find(x=>x.pct==topP)||{}).boro||'';
   const lensCol = state.lens==='complaints'?COOL:HOT;
-  document.getElementById('kpis').innerHTML = card('Incidents · '+yearLabel(yr), fmt(cur),
-      state.offsel.size===DATA.offenses.length?'all offense types':state.offsel.size+' offense type(s)', null, lensCol)
-    + card('Change', yr===2026?'—':(cur>=prev?'+':'−')+fmt(Math.abs(cur-prev)), '', chg, yr===2026?'#9a8f73':(cur>=prev?HOT:'#2c7a4b'))
-    + card('Enforcement-sensitive share', pct1(share), 'of all '+(state.lens)+' this year', null, HOT)
-    + card('Top precinct', topP?('#'+topP):'—', topP?(boro+' · '+fmt(topV)+' incidents'):'', null, '#b08328');
+  const ig = t => ` <span class="info" data-tip="${t}">i</span>`;
+  const sel = state.offsel.size===DATA.offenses.length?'all offense types':state.offsel.size+' offense type(s)';
+  document.getElementById('kpis').innerHTML = card('Incidents · '+yearLabel(yr)
+        + ig(`<strong>Incidents</strong><br>Total ${state.lens} recorded for your selected offenses and offense level in ${yearLabel(yr)}. Raw totals, not adjusted for population.`),
+      fmt(cur), sel, null, lensCol)
+    + card('Change'
+        + ig('<strong>Change</strong><br>Difference in this total from the prior full year. Left blank for 2026, which covers only the first quarter and is not comparable to a full year.'),
+      yr===2026?'—':(cur>=prev?'+':'−')+fmt(Math.abs(cur-prev)), '', chg, yr===2026?'#9a8f73':(cur>=prev?HOT:'#2c7a4b'))
+    + card('Enforcement-sensitive share'
+        + ig(`<strong>Enforcement-sensitive share</strong><br>Of all ${state.lens} recorded this year (every offense, regardless of the filter), the percentage that are enforcement-sensitive — proactively policed offenses like drugs, trespass and fare evasion.`),
+      pct1(share), 'of all '+(state.lens)+' this year', null, HOT)
+    + card('Top precinct'
+        + ig('<strong>Top precinct</strong><br>The precinct with the most recorded incidents for your current selection (lens, offense level and offenses), this year.'),
+      topP?('#'+topP):'—', topP?(boro+' · '+fmt(topV)+' incidents'):'', null, '#b08328');
 }
 function card(lab,val,meta,extra,color){ return `<div class="kpi"><span class="accent" style="background:${color||HOT}"></span>
   <div class="lab">${lab}</div><div class="val num">${val}</div>${extra||(meta?`<div class="meta">${meta}</div>`:'')}</div>`; }
@@ -360,13 +392,14 @@ function lineChart(elId, series, opt){
   });
 }
 function legendHtml(elId, items){ document.getElementById(elId).innerHTML =
-  items.map(i=>`<span><i style="background:${i.color}"></i>${i.name}</span>`).join(''); }
+  items.map(i=>{ const t=i.tip?` class="info" style="cursor:help;border:0;width:auto;height:auto;margin:0;opacity:1" data-tip="${i.tip}"`:'';
+    return `<span${t}><i style="background:${i.color}"></i>${i.name}${i.tip?' <span class="info">i</span>':''}</span>`; }).join(''); }
 function toSeries(obj,name,color){ return {name,color,values:DATA.years.map(y=>({x:y,y:obj[y]||0}))}; }
 
 /* ---------- charts ---------- */
 function renderGroupTrend(){
   const gs=groupSeries(state.lens);
-  const series=['proactive','victim','other'].map(g=>toSeries(gs[g],GNAME[g],GCOL[g]));
+  const series=['proactive','victim','other'].map(g=>{ const s=toSeries(gs[g],GNAME[g],GCOL[g]); s.tip=GROUP_DEF[g]; return s; });
   lineChart('groupTrend',series,{zero:state.zero.group,height:240});
   legendHtml('groupLegend',series);
 }
@@ -418,8 +451,8 @@ function renderDetail(){
   let h=`<div class="note">Enforcement-sensitive share in ${yearLabel(yr)}: <strong>${pct1(tot?pro/tot:0)}</strong> · ${fmt(tot)} total incidents (${state.lens})</div>`;
   h+='<div id="detTrend"></div>';
   h+=`<h3 style="margin-top:10px;font-size:13px">Top offenses, ${yearLabel(yr)}</h3><table class="rank">`;
-  top.forEach(t=>{ const o=DATA.offenses[t.o]; h+=`<tr><td><span class="pill" style="border-color:${GCOL[o.group]};color:${GCOL[o.group]}">${GNAME[o.group][0]}</span></td>
-    <td>${o.label}</td><td class="n">${fmt(t.v)}</td><td style="width:36%"><span class="bar" style="width:${Math.max(2,t.v/tmax*100)}%;background:${GCOL[o.group]}"></span></td></tr>`; });
+  top.forEach(t=>{ const o=DATA.offenses[t.o]; h+=`<tr><td><span class="pill" style="border-color:${GCOL[o.group]};color:${GCOL[o.group]};cursor:help" data-tip="${GROUP_DEF[o.group]}">${GNAME[o.group][0]}</span></td>`
+    + `<td>${o.label}</td><td class="n">${fmt(t.v)}</td><td style="width:36%"><span class="bar" style="width:${Math.max(2,t.v/tmax*100)}%;background:${GCOL[o.group]}"></span></td></tr>`; });
   h+='</table>';
   const body=document.getElementById('detailBody'); body.innerHTML=h;
   lineChart('detTrend',[toSeries(ser,'Precinct '+p+' (current selection)','#1b1b1a')],{zero:true,height:170,events:true});
