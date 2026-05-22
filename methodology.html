@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methodology — NYC misdemeanors and violations map</title>
+<style>
+  :root{--paper:#f6f3ec;--ink:#1b1b1a;--muted:#6f6b63;--accent:#c1432f;--hair:#d9d3c6;--card:#fffdf8}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;line-height:1.6;font-size:16px}
+  .wrap{max-width:780px;margin:0 auto;padding:30px 20px 70px}
+  a{color:var(--accent)}
+  h1{font-size:30px;line-height:1.15;letter-spacing:-0.01em;margin:0 0 6px}
+  h2{font-size:20px;margin:34px 0 8px;border-bottom:2px solid var(--ink);padding-bottom:4px}
+  h3{font-size:15px;margin:20px 0 4px}
+  .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .lede{color:var(--muted);font-size:16px}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
+  code{background:var(--card);border:1px solid var(--hair);padding:1px 5px;font-size:13.5px}
+  .group{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    padding:2px 7px;border-radius:3px;color:#fff}
+  .g-pro{background:#c1432f}.g-vic{background:#2f6b8f}.g-oth{background:#9a9488}
+  ul{margin:6px 0 6px 0;padding-left:22px} li{margin:4px 0}
+  .back{display:inline-block;margin-bottom:14px;font-size:14px}
+  .callout{background:var(--card);border:1.5px solid var(--ink);padding:12px 16px;margin:14px 0}
+  footer{margin-top:40px;border-top:2px solid var(--ink);padding-top:14px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">&larr; Back to the map</a>
+  <div class="kicker">Methodology &amp; sources</div>
+  <h1>How this map was built</h1>
+  <p class="lede">This document records every data source, every analytical choice and every known
+  limitation behind the map of New York City misdemeanors and violations. Nothing here is a black box.
+  The two scripts that produce the data are public and re-runnable.</p>
+
+  <h2>What the map shows</h2>
+  <p>Every record New York City's Police Department classifies as a <strong>misdemeanor</strong> or a
+  <strong>violation</strong> — the two lowest tiers of offense, below felonies — from January 1, 2015 through
+  March 31, 2026, aggregated to the city's 78 police precincts. Felonies are excluded entirely. Two separate
+  lenses are offered:</p>
+  <ul>
+    <li><strong>Complaints</strong> — incidents reported to or recorded by police (the standard "crime" dataset).
+      Measures reported crime.</li>
+    <li><strong>Arrests</strong> — arrests made by police. Measures enforcement activity. An arrest is itself an
+      enforcement action, so this lens responds directly to "enforcement pushes."</li>
+  </ul>
+
+  <h2>Data sources</h2>
+  <p>All data comes from <a href="https://opendata.cityofnewyork.us/">New York City Open Data</a> and was retrieved
+  on May 21, 2026.</p>
+  <table>
+    <tr><th>Dataset</th><th>ID</th><th>Used for</th></tr>
+    <tr><td>NYPD Complaint Data Historic</td><td><a href="https://data.cityofnewyork.us/d/qgea-i56i">qgea-i56i</a></td><td>Complaints, 2015–2025</td></tr>
+    <tr><td>NYPD Complaint Data Current (Year to Date)</td><td><a href="https://data.cityofnewyork.us/d/5uac-w243">5uac-w243</a></td><td>Complaints, 2026 Q1</td></tr>
+    <tr><td>NYPD Arrests Data Historic</td><td><a href="https://data.cityofnewyork.us/d/8h9b-rp9u">8h9b-rp9u</a></td><td>Arrests, 2015–2025</td></tr>
+    <tr><td>NYPD Arrest Data Year to Date</td><td><a href="https://data.cityofnewyork.us/d/uip8-fykc">uip8-fykc</a></td><td>Arrests, 2026 Q1</td></tr>
+    <tr><td>Police Precincts (boundaries)</td><td><a href="https://data.cityofnewyork.us/d/y76i-bdw7">y76i-bdw7</a></td><td>Map polygons</td></tr>
+  </table>
+
+  <h3>Dates</h3>
+  <p>Complaints are dated by <strong>report date</strong> (<code>RPT_DT</code>), the date the incident was reported
+  to police — not the date the offense is alleged to have occurred (<code>CMPLT_FR_DT</code>), which can be years
+  earlier for some offenses. Arrests are dated by <strong>arrest date</strong> (<code>ARREST_DATE</code>).</p>
+
+  <div class="callout"><strong>2026 is a partial year.</strong> It covers the first quarter only (January 1 – March 31).
+  On every chart the line to 2026 is drawn dashed, and 2026 totals should be compared against prior first quarters,
+  not against full years. Year-over-year change figures are suppressed for 2026.</div>
+
+  <h2>The enforcement-sensitivity classification</h2>
+  <p>The central analytical move is to separate offenses whose recorded counts move with <em>policing strategy</em>
+  from those that mostly reflect <em>underlying victimization</em>. Each offense type is assigned to one of three
+  groups. This is a documented editorial judgment, not an official NYPD category — the complete assignment is
+  exported to <a href="data/classification.csv">classification.csv</a> so it can be inspected or contested.</p>
+
+  <p><span class="group g-pro">Enforcement-sensitive</span> Discretionary, officer-initiated offenses. A police
+  officer largely decides whether these become a recorded incident, so the counts rise and fall with proactive
+  enforcement: <em>dangerous drugs, cannabis offenses, criminal trespass, theft of services (fare evasion),
+  gambling, loitering, prostitution, disorderly conduct, weapon possession, intoxicated/impaired driving,
+  vehicle-and-traffic-law offenses, alcoholic-beverage offenses, fraudulent accosting, jostling, burglar's tools,
+  fortune telling.</em></p>
+
+  <p><span class="group g-vic">Complaint-driven</span> Offenses typically reported by a victim or witness, where a
+  member of the public, not an officer, usually initiates the record: <em>petit larceny, assault 3, harassment,
+  criminal mischief, sex crimes, forcible touching, fraud, unauthorized use of a vehicle, possession of stolen
+  property, offenses against children, endangering welfare.</em></p>
+
+  <p><span class="group g-oth">Other / mixed</span> Administrative catch-alls, ambiguous grab-bag categories, and
+  offenses that arise <em>downstream</em> of police contact rather than from a push to police a behavior:
+  <em>offenses against public administration (resisting arrest, obstructing governmental administration),
+  "offense against public order/sensibility," administrative code, miscellaneous penal law, other state laws,
+  anticipatory offenses, escape, agriculture &amp; markets law, health code, uncoded entries.</em></p>
+
+  <h3>Why some judgment calls went the way they did</h3>
+  <ul>
+    <li><strong>"Offenses against public administration"</strong> (resisting arrest, obstruction) is placed in
+      <em>Other</em>, not Enforcement-sensitive. Its counts are driven by police contact, but it is a consequence
+      of enforcement rather than a target of an enforcement push, so grouping it with drugs or trespass would
+      overstate the enforcement-sensitive total.</li>
+    <li><strong>"Offense against public order/sensibility"</strong> is a large, heterogeneous bucket (public lewdness,
+      unlawful surveillance, and more) that is part proactive and part victim-reported. Rather than guess, it is
+      left in <em>Other</em>.</li>
+    <li><strong>Dangerous weapons (possession)</strong> and <strong>vehicle-and-traffic-law</strong> offenses are
+      treated as enforcement-sensitive because, at the misdemeanor/violation level, they are overwhelmingly
+      discovered through stops and proactive checks.</li>
+  </ul>
+
+  <h2>The most important limitation: this is not all enforcement</h2>
+  <div class="callout">For the lowest-level offenses, much enforcement never appears in either dataset here.
+  Fare evasion, open-container, public urination, disorderly conduct and similar quality-of-life matters are
+  frequently resolved with a <strong>criminal court summons</strong> or a <strong>civil/OATH summons</strong>,
+  neither of which is a complaint or an arrest. That is why "theft of services" shows only a few thousand
+  complaints across eleven years even though fare evasion enforcement runs far higher. The enforcement-sensitive
+  <em>arrest</em> lens captures the share handled by arrest, but the summons channel is out of scope. A future
+  version could add the NYPD criminal-court-summons dataset.</div>
+  <p>More generally: complaint data measures <em>reported</em> crime, which is shaped by public willingness to
+  report; arrest data measures <em>police activity</em>, not the amount of crime occurring. Neither is a direct
+  measure of how much low-level offending actually happens.</p>
+
+  <h2>Geographic method</h2>
+  <ul>
+    <li>Incidents are aggregated to the precinct of occurrence (<code>ADDR_PCT_CD</code> for complaints,
+      <code>ARREST_PRECINCT</code> for arrests). Records with no precinct are dropped.</li>
+    <li>Precinct <strong>116</strong> (operational since 2024 in southeast Queens) is shown on its own polygon.
+      Precinct code <strong>483</strong> appears on three stray records and is dropped as invalid.</li>
+    <li>The map is <strong>not population-normalized.</strong> Precinct-level population is not part of these datasets,
+      so counts are raw incidents, not rates per resident. A precinct with more people, more commercial activity or
+      more transit will tend to show higher counts. Compare the <em>enforcement-sensitive share</em> view, which is
+      a within-precinct ratio and so is less sensitive to raw volume.</li>
+  </ul>
+
+  <h2>Data cleaning</h2>
+  <ul>
+    <li>Offense names are canonicalized: the source data contains truncated and variant spellings of the same
+      offense (for example <code>CRIMINAL MISCHIEF &amp; RELATED OF</code> and
+      <code>CRIMINAL MISCHIEF &amp; RELATED OFFENSES</code>), which are merged to one label.</li>
+    <li>Offense level is read from <code>LAW_CAT_CD</code> (<code>MISDEMEANOR</code>/<code>VIOLATION</code> in
+      complaints; <code>M</code>/<code>V</code> in arrests). Felony, infraction and unclassified levels are excluded.</li>
+    <li>All aggregation is done server-side through the Socrata API (<code>GROUP BY</code> queries); no raw
+      person-level records are stored or shipped.</li>
+  </ul>
+
+  <h2>Reproduce it</h2>
+  <p>Two scripts regenerate everything:</p>
+  <ul>
+    <li><code>fetch_data.py</code> — pulls precinct × year × offense × level counts from the four NYPD datasets.</li>
+    <li><code>build_data.py</code> — canonicalizes offenses, applies the classification, simplifies the precinct
+      boundaries, and writes <a href="data/data.json">data.json</a>, <a href="data/precincts.json">precincts.json</a>
+      and <a href="data/classification.csv">classification.csv</a>.</li>
+  </ul>
+  <p>Run <code>python3 fetch_data.py &amp;&amp; python3 build_data.py</code>. No API key is required.</p>
+
+  <footer>
+    Generated May 21, 2026. Data via New York City Open Data. This is a data tool: it reports counts and shares and
+    does not assert why they change.
+    <div style="margin-top:8px"><a href="index.html">&larr; Back to the map</a></div>
+  </footer>
+</div>
+</body>
+</html>

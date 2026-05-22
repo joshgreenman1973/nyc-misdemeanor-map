@@ -1,0 +1,5 @@
+data/raw_complaints.json
+data/raw_arrests.json
+data/precincts_raw.geojson
+data/p2.geojson
+.claude/
