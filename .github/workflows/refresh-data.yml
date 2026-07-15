@@ -1,0 +1,56 @@
+name: Refresh precinct data
+
+# NYPD complaint/arrest data updates roughly quarterly (with a lag). This job
+# re-pulls from NYC Open Data, rebuilds the aggregates, and commits them only if
+# something actually changed. fetch_data.py auto-detects the latest COMPLETE
+# quarter, so no code edits are needed when a new quarter lands.
+
+on:
+  schedule:
+    - cron: '0 14 5 * *'   # 10 AM ET, 5th of each month
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # No pip install: fetch_data.py is stdlib-only, and build_data.py only
+      # imports shapely for the boundary step, which is skipped in CI (the raw
+      # geojson is gitignored, so the committed precincts.json is reused).
+
+      - name: Fetch from NYC Open Data
+        run: python3 fetch_data.py
+
+      - name: Rebuild aggregates
+        run: python3 build_data.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/data.json data/classification.csv data/meta.json
+          if git diff --staged --quiet; then
+            echo "No data change -- nothing to commit."
+          else
+            through=$(python3 -c "import json;print(json.load(open('data/meta.json'))['quarter_label'])")
+            git commit -m "Data refresh: through ${through} ($(date -u +%Y-%m-%d))"
+            pushed=false
+            for attempt in 1 2 3 4 5; do
+              if git push origin HEAD; then pushed=true; break; fi
+              echo "Push rejected (attempt $attempt) -- rebasing on latest..."
+              git pull --rebase --autostash origin "$(git rev-parse --abbrev-ref HEAD)"
+            done
+            $pushed || { echo "Push failed after retries"; exit 1; }
+          fi

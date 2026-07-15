@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Precinct Ledger — New York City misdemeanors and violations, 2015 – Q1 2026</title>
+<title>'Small' Crimes Up Close — New York City misdemeanors and violations, 2015 – Q1 2026</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,7 +48,7 @@
   .dateline b{color:var(--ink);font-weight:600}
   h1.masthead{font-family:var(--serif);font-weight:900;font-size:clamp(34px,7vw,82px);line-height:.92;
     letter-spacing:-.02em;margin:16px 0 8px;font-variation-settings:'opsz' 144,'SOFT' 0,'WONK' 1}
-  h1.masthead em{font-style:italic;font-weight:500;color:var(--hot)}
+  h1.masthead .q{color:var(--hot)}
   .standfirst{font-family:var(--serif);font-size:clamp(15px,1.7vw,19px);font-weight:400;font-style:italic;
     max-width:740px;color:var(--ink2);margin:0 0 4px;line-height:1.4}
   .standfirst b{font-style:normal;font-weight:600}
@@ -63,6 +63,33 @@
     border:1.5px solid var(--rule);background:var(--ink);color:var(--paper);padding:9px 16px;cursor:pointer;
     box-shadow:3px 3px 0 rgba(22,19,12,.3);margin:14px 0 2px}
   .tourbtn:hover{background:var(--hot)} .tourbtn:active{transform:translate(3px,3px);box-shadow:none}
+
+  /* ---------- what's a misdemeanor / violation? (expandable) ---------- */
+  .defbox{margin:16px 0 2px;max-width:760px}
+  .defbox>summary{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:8px;
+    padding:6px 0;user-select:none}
+  .defbox>summary::-webkit-details-marker{display:none}
+  .defbox>summary::before{content:"\25B8";font-size:10px;color:var(--hot);transition:transform .15s}
+  .defbox[open]>summary::before{transform:rotate(90deg)}
+  .defbox>summary:hover{color:var(--ink)}
+  .defnote{font-size:12.5px;color:var(--muted);margin:2px 0 0;line-height:1.45;max-width:680px}
+  .defnote b{color:var(--ink);font-weight:600}
+  .defgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:9px 0 7px}
+  .defcard{background:var(--card);border:1px solid var(--hair);border-left:3px solid var(--ink);padding:12px 14px}
+  .defcard.viol{border-left-color:var(--other)}
+  .defcard .term{font-family:var(--serif);font-weight:700;font-size:19px;line-height:1;margin:0 0 7px;
+    display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .defcard .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    padding:2px 6px;border:1px solid;border-radius:2px;font-weight:500}
+  .defcard.misd .tag{color:var(--ink);border-color:var(--ink)}
+  .defcard.viol .tag{color:var(--muted);border-color:var(--other)}
+  .defcard p{margin:0 0 8px;font-size:13.5px;color:var(--ink2);line-height:1.45}
+  .defcard .eg{font-size:12px;color:var(--muted);line-height:1.4}
+  .defcard .eg b{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);display:block;margin-bottom:2px;font-weight:500}
+  .defcard .eg i{font-style:italic;color:var(--ink2)}
+  @media(max-width:640px){.defgrid{grid-template-columns:1fr}}
 
   /* ---------- sticky control bar ---------- */
   #controlbar{position:sticky;top:0;z-index:300;background:var(--paper);
@@ -276,6 +303,19 @@
     .panel .body{padding:13px 13px}
     .twolens span{font-size:10px;padding:4px 9px}
   }
+
+  /* ---------- share / export bar ---------- */
+  .sharebar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:2px 0 10px}
+  .sharebar button{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+    border:1.5px solid var(--rule);background:var(--card);color:var(--ink);padding:6px 12px;cursor:pointer;
+    box-shadow:2px 2px 0 rgba(22,19,12,.18)}
+  .sharebar button:hover{background:var(--ink);color:var(--paper)}
+  .sharebar button:active{transform:translate(2px,2px);box-shadow:none}
+  .copymsg{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--cool);opacity:0;transition:opacity .2s}
+  .copymsg.show{opacity:1}
+  /* neighborhood label under a precinct number in the ranking + tables */
+  .hood{display:block;font-family:var(--sans);font-size:10.5px;font-weight:400;color:var(--muted);
+    letter-spacing:0;text-transform:none;margin-top:1px}
 </style>
 </head>
 <body>
@@ -284,18 +324,37 @@
     <div class="dateline">
       <span>New York City &middot; <b>NYPD complaints &amp; arrests</b></span>
       <span>Misdemeanors &amp; violations only &middot; <b>Felonies excluded</b></span>
-      <span>2015 &mdash; <b>Q1 2026</b></span>
+      <span>2015 &mdash; <b id="dlWindow">Q1 2026</b></span>
     </div>
-    <h1 class="masthead">The Precinct <em>Ledger</em></h1>
+    <h1 class="masthead"><span class="q">'Small'</span> Crimes Up Close</h1>
     <div class="twolens">
       <span class="l-c">Complaints = reported crime</span>
       <span class="l-a">Arrests = enforcement activity</span>
     </div>
-    <p class="standfirst">Every misdemeanor and violation the New York Police Department recorded from 2015 through the first
-      quarter of 2026 &mdash; more than 3.7 million complaints and 1.6 million arrests &mdash; down to the precinct.
+    <p class="standfirst">Every misdemeanor and violation the New York Police Department recorded from 2015 through
+      <span id="sfWindow">the first quarter of 2026</span> &mdash; more than <span id="sfComplaints">3.7 million</span> complaints
+      and <span id="sfArrests">1.6 million</span> arrests &mdash; down to the precinct.
       For petit larceny or assault, complaints and arrests roughly track each other. For drug possession, trespassing
       and fare evasion, they don't: those counts reflect enforcement decisions as much as what actually happened.</p>
-    <button class="tourbtn" id="tourBtn">Read the ledger &rarr;</button>
+    <button class="tourbtn" id="tourBtn">Take the tour &rarr;</button>
+
+    <details class="defbox">
+      <summary>What's a misdemeanor? What's a violation?</summary>
+      <p class="defnote">New York sorts offenses into three tiers by how much jail time they can carry. Felonies &mdash; the most serious &mdash; are <b>excluded</b> here. The two lowest tiers are what you see.</p>
+      <div class="defgrid">
+        <div class="defcard misd">
+          <div class="term">Misdemeanor <span class="tag">A crime</span></div>
+          <p>The lower tier of crime, one step below a felony. Punishable by up to 364 days in jail (Class A) or 90 days (Class B), and it leaves a criminal record.</p>
+          <div class="eg"><b>In this data</b><i>Petit larceny, assault in the third degree, criminal mischief and misdemeanor drug possession.</i></div>
+        </div>
+        <div class="defcard viol">
+          <div class="term">Violation <span class="tag">Not a crime</span></div>
+          <p>A lesser offense under the state Penal Law &mdash; legally not a crime at all. Punishable by no more than 15 days in jail, and it leaves no criminal record.</p>
+          <div class="eg"><b>In this data</b><i>Harassment in the second degree, disorderly conduct and loitering.</i></div>
+        </div>
+      </div>
+      <p class="defnote">The same conduct can sometimes be charged at either level; this map uses the level police recorded in each incident.</p>
+    </details>
   </div>
 </header>
 
@@ -321,6 +380,7 @@
         <label>Map shading</label>
         <div class="seg" id="metricSeg" role="radiogroup" aria-label="Map shading">
           <button data-v="count" role="radio" aria-checked="true" data-tip="<strong>Count</strong><br>Total recorded incidents in each precinct. Raw totals, not adjusted for population.">Count</button>
+          <button data-v="rate" role="radio" aria-checked="false" data-tip="<strong>Rate per 1,000 residents</strong><br>Incidents divided by the precinct's population, so dense and sparse precincts become comparable. Population varies by year (2010 &amp; 2020 censuses). Central Park &amp; the new 116th are excluded.">Rate / 1k</button>
           <button data-v="share" role="radio" aria-checked="false" data-tip="<strong>Enforcement-sensitive share</strong><br>What share of each precinct's incidents are proactively policed offenses (drugs, trespass, fare evasion, etc.) rather than victim-reported ones.">Enforcement share</button>
           <button data-v="ratio" role="radio" aria-checked="false" data-tip="<strong>Complaint-to-arrest ratio</strong><br>Each precinct's complaints divided by its arrests, compared against the citywide average.">Complaint : arrest</button>
         </div>
@@ -331,18 +391,23 @@
           <button class="playbtn" id="playBtn" title="Play 2015 → 2026 (pauses at the end)" aria-label="Play through years">&#9658;</button>
           <div class="scrub">
             <div class="yearbars" id="yearBars" role="slider" tabindex="0" aria-label="Year for map and ranking" aria-valuemin="2015" aria-valuemax="2026"></div>
-            <div class="yearends"><span>2015</span><span>scrub the decade &middot; bar height = that year's total</span><span>2026 Q1</span></div>
+            <div class="yearends"><span>2015</span><span>scrub the decade &middot; bar height = that year's total</span><span id="scrubEnd">2026 Q1</span></div>
           </div>
           <span class="yearval num" id="yearVal">2025</span>
         </div>
       </div>
     </div>
     <div class="statebar" id="statebar"></div>
+    <div class="sharebar">
+      <button type="button" id="copyLink" data-tip="<strong>Copy link</strong><br>Copies a URL that reopens the map exactly as you have it now — lens, offense level, shading, year and any open precinct.">Copy link to this view</button>
+      <button type="button" id="dlCsvBtn" data-tip="<strong>Download CSV</strong><br>Every precinct &times; year for your current lens, offense level and offense selection, with population and per-1,000 rate.">Download CSV</button>
+      <span id="copyMsg" class="copymsg" aria-live="polite"></span>
+    </div>
   </div>
 </div>
 
 <main class="wrap">
-  <div class="sect reveal"><span class="no">§01</span><h2>The ledger at a glance</h2><span class="rule"></span></div>
+  <div class="sect reveal"><span class="no">§01</span><h2>The numbers at a glance</h2><span class="rule"></span></div>
   <div class="kpis reveal" id="kpis"></div>
 
   <div class="sect reveal"><span class="no">§02</span><h2>The map</h2><span class="rule"></span></div>
@@ -476,20 +541,26 @@
     (Historic <a href="https://data.cityofnewyork.us/d/8h9b-rp9u">8h9b-rp9u</a>, YTD <a href="https://data.cityofnewyork.us/d/uip8-fykc">uip8-fykc</a>),
     via New York City Open Data. Boundaries: NYPD police precincts (<a href="https://data.cityofnewyork.us/d/y76i-bdw7">y76i-bdw7</a>).
     Complaints dated by report date (RPT_DT); arrests by arrest date. Restricted to offense level misdemeanor and violation.
-    2026 is the first quarter only (through March 31). Generated <span id="genDate"></span>.
+    <span id="ftWindow">2026 is the first quarter only (through March 31).</span> Generated <span id="genDate"></span>.
+    <div style="margin-top:8px">
+      <strong>Population</strong> (for per-capita rates): U.S. Census 2010 &amp; 2020, apportioned to 2020 precinct boundaries
+      (<a href="https://github.com/jkeefe/census-by-precincts">John Keefe's census-by-precincts</a>). Counts vary by year —
+      interpolated between the two censuses for 2015&ndash;2020, held at 2020 thereafter. Central Park (22nd) and the
+      116th precinct are excluded from rates.
     <div style="margin-top:10px">
       Full method, the enforcement-sensitivity classification, limitations and reproducible code:
       <a href="methodology.html">methodology</a> &middot;
       <a href="data/classification.csv">offense classification (CSV)</a> &middot;
+      <a href="#" id="dlViewCsv">download this view (CSV)</a> &middot;
       <a href="data/data.json">aggregated data (JSON)</a>.
       This is a data tool; it does not draw conclusions about why counts change.
-    </div>
+    </div></div>
   </div>
 </footer>
 
 <div class="tip" id="tip"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

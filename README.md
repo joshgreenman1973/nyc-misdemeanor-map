@@ -1,4 +1,4 @@
-# NYC misdemeanors & violations map (2015 – Q1 2026)
+# 'Small' Crimes Up Close — NYC misdemeanors & violations map (2015 – Q1 2026)
 
 An interactive, searchable precinct-level map of New York City's lowest-level offenses —
 misdemeanors and violations — with two lenses (**complaints** = reported crime, **arrests** =

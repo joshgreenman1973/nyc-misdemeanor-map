@@ -136,11 +136,38 @@
       <code>ARREST_PRECINCT</code> for arrests). Records with no precinct are dropped.</li>
     <li>Precinct <strong>116</strong> (operational since 2024 in southeast Queens) is shown on its own polygon.
       Precinct code <strong>483</strong> appears on three stray records and is dropped as invalid.</li>
-    <li>The map is <strong>not population-normalized.</strong> Precinct-level population is not part of these datasets,
-      so counts are raw incidents, not rates per resident. A precinct with more people, more commercial activity or
-      more transit will tend to show higher counts. Compare the <em>enforcement-sensitive share</em> view, which is
-      a within-precinct ratio and so is less sensitive to raw volume.</li>
+    <li>The default <em>count</em> view is <strong>raw incidents, not adjusted for population</strong>, so a precinct
+      with more people, more commercial activity or more transit tends to show higher counts. The <em>rate per 1,000
+      residents</em> view (below) adjusts for population; the <em>enforcement-sensitive share</em> view is a
+      within-precinct ratio and so is also insensitive to raw volume.</li>
   </ul>
+
+  <h2>Per-capita rates (population that varies by year)</h2>
+  <p>The <strong>rate per 1,000 residents</strong> shading divides a precinct's incidents (for the selected lens,
+  offense level, offenses and year) by its residential population, then multiplies by 1,000. Because NYPD precincts
+  are not census geographies and <strong>precinct populations change over time</strong>, the denominator is built to
+  be both real and time-varying:</p>
+  <ul>
+    <li><strong>Source.</strong> Residential population comes from the 2010 and 2020 decennial censuses, apportioned to
+      2020 NYPD precinct boundaries by John Keefe's
+      <a href="https://github.com/jkeefe/census-by-precincts">census-by-precincts</a> crosswalk. Both censuses use the
+      same 2020 boundaries, so the two counts are directly comparable.</li>
+    <li><strong>Between the censuses (2015&ndash;2020).</strong> Each precinct's population is <strong>linearly
+      interpolated</strong> between its 2010 and 2020 counts, giving a distinct, real-anchored estimate for every year
+      &mdash; not one static number applied to the whole decade.</li>
+    <li><strong>After 2020 (2021 onward).</strong> Population is <strong>held at the 2020 count.</strong> No reliable
+      annual population exists at the precinct level after the 2020 census, so rather than extrapolate a trend (which
+      can overshoot) or invent numbers, we hold the last real count and say so. Recent rates should be read with that
+      caveat: the citywide population moved modestly after 2020, but the map keeps precinct denominators fixed.</li>
+    <li><strong>Excluded precincts.</strong> The <strong>22nd (Central Park)</strong> has a negligible residential base
+      (about 130 people) so a per-capita rate is meaningless; the <strong>116th</strong> (operational since 2024, carved
+      from the 105th) has no census crosswalk yet. Both are shown grey in rate mode and left blank in the CSV.</li>
+    <li><strong>Daytime-population flag.</strong> Midtown precincts <strong>14 and 18</strong> run high on per-capita
+      rates because their daytime and commuter population dwarfs the residents the census counts. The tooltip and
+      dossier flag this; the rate is real but reflects a denominator that undercounts who is actually present.</li>
+  </ul>
+  <p>Rates are a comparison aid, not a risk score. The full per-precinct, per-year population and rate for any
+  selection is available through <em>Download CSV</em>.</p>
 
   <h2>Data cleaning</h2>
   <ul>
@@ -156,12 +183,15 @@
   <h2>Reproduce it</h2>
   <p>Two scripts regenerate everything:</p>
   <ul>
-    <li><code>fetch_data.py</code> — pulls precinct × year × offense × level counts from the four NYPD datasets.</li>
-    <li><code>build_data.py</code> — canonicalizes offenses, applies the classification, simplifies the precinct
-      boundaries, and writes <a href="data/data.json">data.json</a>, <a href="data/precincts.json">precincts.json</a>
-      and <a href="data/classification.csv">classification.csv</a>.</li>
+    <li><code>fetch_data.py</code> — pulls precinct × year × offense × level counts from the four NYPD datasets. It
+      <strong>auto-detects the latest complete calendar quarter</strong> from the year-to-date datasets (so nothing has
+      to be hand-edited when a new quarter lands) and writes the resolved window to <code>data/meta.json</code>.</li>
+    <li><code>build_data.py</code> — canonicalizes offenses, applies the classification, attaches per-year populations
+      and neighborhood names, simplifies the precinct boundaries, and writes <a href="data/data.json">data.json</a>,
+      <a href="data/precincts.json">precincts.json</a> and <a href="data/classification.csv">classification.csv</a>.</li>
   </ul>
-  <p>Run <code>python3 fetch_data.py &amp;&amp; python3 build_data.py</code>. No API key is required.</p>
+  <p>Run <code>python3 fetch_data.py &amp;&amp; python3 build_data.py</code>. No API key is required. A monthly GitHub
+  Action re-runs both and commits the result only when the data actually changes.</p>
 
   <footer>
     Generated May 21, 2026. Data via New York City Open Data. This is a data tool: it reports counts and shares and

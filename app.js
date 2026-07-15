@@ -17,6 +17,8 @@ const RAMP = ['#33240f','#6e3411','#a8481a','#d2691e','#e89a3c','#f4c46a','#fae6
 const RAMP_SHARE = ['#1f5f7a','#5f93a3','#a9b8a8','#d8c79a','#d27a3c','#c8341f'];
 // diverging hot -> bone -> cool (complaint:arrest ratio: low=arrest-heavy, high=complaint-heavy)
 const RAMP_RATIO = ['#c8341f','#d27a3c','#dac79a','#a9b8a8','#5f93a3','#1f5f7a'];
+// cool luminous ramp for per-capita rates on the dark map (distinct from the warm count ramp)
+const RAMP_RATE = ['#0e2a2f','#124a4a','#166b6b','#2a9d8f','#57c4b0','#9fe0d0','#e3f6ef'];
 const NODATA='#241f17';
 
 const EVENTS = [
@@ -61,6 +63,33 @@ const G = oid => DATA.offenses[oid].group;
 function rows(){ return DATA[state.lens]; }
 function passLaw(r){ return state.law==='all' || r[3]===state.law; }
 function passSel(r){ return state.offsel.has(r[2]); }
+
+/* ---------- population + neighborhood ---------- */
+let RATE_EXCLUDE = new Set(), DAYTIME_FLAG = new Set(), DEFAULT_YEAR = null;
+// residential population for a precinct in a year (varies by year); null if none
+function popOf(pct, year){
+  const arr = DATA.populations && DATA.populations[pct];
+  if(!arr) return null;
+  const i = DATA.years.indexOf(year); if(i<0) return null;
+  const v = arr[i]; return (v==null) ? null : v;
+}
+function nbhOf(pct){ return (DATA.neighborhoods && DATA.neighborhoods[pct]) || ''; }
+// "#75 · East New York" style label
+function pctLabel(pct){ const n=nbhOf(pct); return n ? ('#'+pct+' · '+n) : ('#'+pct); }
+// per-precinct incidents-per-1,000-residents for current selection in a year
+function perPrecinctRate(year){
+  const cnt = perPrecinct(year);
+  const rate={}, pop={};
+  for(const p in cnt){
+    const pn=+p;
+    if(RATE_EXCLUDE.has(pn)) continue;      // no meaningful residential denominator
+    const pv = popOf(''+pn, year);
+    if(!pv) continue;
+    pop[p]=pv; rate[p]= cnt[p]/pv*1000;
+  }
+  let max=0; for(const p in rate) max=Math.max(max, rate[p]);
+  return {rate, count:cnt, pop, max};
+}
 
 // total for current selection (lens+law+offense set) in a given year, optional pct
 function totalFor(year, pct){
@@ -142,8 +171,14 @@ function init(){
     tip.style.left=(r.left+window.scrollX)+'px'; tip.style.top=(r.bottom+window.scrollY+6)+'px'; });
   document.addEventListener('focusout',e=>{ if(e.target.closest && e.target.closest('[data-tip]')) hideTip(); });
   document.getElementById('genDate').textContent = DATA.generated;
+  ((DATA.popMeta&&DATA.popMeta.rateExclude)||[]).forEach(p=>RATE_EXCLUDE.add(+p));
+  ((DATA.popMeta&&DATA.popMeta.daytimeFlag)||[]).forEach(p=>DAYTIME_FLAG.add(+p));
   DATA.offenses.forEach((o,i)=>state.offsel.add(i)); // default: all selected
-  state.year = 2025;
+  { const w=DATA.window||{}, last=DATA.years[DATA.years.length-1];
+    const lc = w.partial ? ((w.partialYear||last)-1) : last;   // default to latest COMPLETE year
+    DEFAULT_YEAR = DATA.years.includes(lc) ? lc : last; state.year = DEFAULT_YEAR; }
+  fillDynamicLabels();
+  applyHash();               // restore state from a shared link, if present
   document.getElementById('yearVal').textContent = yearLabel(state.year);
 
   // year-jump dropdown (in filter panel)
@@ -192,6 +227,12 @@ function init(){
   // dossier clear
   document.getElementById('detailClear').addEventListener('click', clearPrecinct);
 
+  // share + export
+  document.getElementById('copyLink').addEventListener('click', copyLink);
+  document.getElementById('dlCsvBtn').addEventListener('click', exportCSV);
+  const dv=document.getElementById('dlViewCsv'); if(dv) dv.addEventListener('click',e=>{ e.preventDefault(); exportCSV(); });
+  window.addEventListener('hashchange', ()=>{ applyHash(); syncControls(); renderAll(); });
+
   // guided tour
   document.getElementById('tourBtn').addEventListener('click', toggleTour);
 
@@ -202,10 +243,13 @@ function init(){
   initMap();
   buildPicker();
   buildTrendControls();
+  syncControls();       // reflect any state restored from the URL in the controls
   renderAll();
   initPlay();
 }
-function yearLabel(y){ return y===2026 ? '2026 (Q1)' : ''+y; }
+function yearLabel(y){ const w=DATA&&DATA.window;
+  if(w&&w.partial&&y===w.partialYear){ const q=((w.quarterLabel||'').split(' ')[0])||'Q1'; return y+' ('+q+')'; }
+  return ''+y; }
 function seg(id,cb){ const el=document.getElementById(id);
   el.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
     [...el.children].forEach(c=>c.setAttribute('aria-checked', c===b)); cb(b.dataset.v); }); }
@@ -222,7 +266,8 @@ function offShort(){ const n=state.offsel.size, t=DATA.offenses.length;
 function selectionSummary(){ return `<b>${state.lens}</b> · <b>${lawShort()}</b> · <b>${offShort()}</b> · <b>${yearLabel(state.year)}</b>`; }
 function renderStateBar(){ const el=document.getElementById('statebar'); if(!el) return;
   el.innerHTML = `<span class="lab">Showing</span> ${selectionSummary()}`
-    + `<button class="adjust" onclick="document.getElementById('controlbar').classList.toggle('open')">Adjust ▾</button>`; }
+    + `<button class="adjust" onclick="document.getElementById('controlbar').classList.toggle('open')">Adjust ▾</button>`;
+  writeHash(); }
 function renderYearBars(){
   const el=document.getElementById('yearBars'); if(!el) return;
   // citywide total per year for current selection
@@ -295,7 +340,7 @@ function initMap(){
         mouseover:e=>{ layer.setStyle({weight:2.2,color:'#f3e8c8'}); layer.bringToFront(); showPctTip(e,p); },
         mousemove:e=>moveTip(e),
         mouseout:e=>{ restyleOne(p); hideTip(); highlightSelected(); },
-        click:()=>{ state.precinct=p; renderDetail(); highlightSelected(); }
+        click:()=>{ state.precinct=p; renderDetail(); highlightSelected(); syncControls(); writeHash(); }
       });
     }
   }).addTo(map);
@@ -308,6 +353,8 @@ function mapValues(){
   if(state.metric==='ratio'){ const {ratio,comp,arr}=perPrecinctRatio(state.year);
     let tc=0,ta=0; for(const p in comp) tc+=comp[p]; for(const p in arr) ta+=arr[p];
     return {kind:'ratio', vals:ratio, center: ta? tc/ta : 1}; }
+  if(state.metric==='rate'){ const {rate,count,pop,max}=perPrecinctRate(state.year);
+    return {kind:'rate', vals:rate, count, pop, max}; }
   const vals=perPrecinct(state.year); let max=0; for(const p in vals) max=Math.max(max,vals[p]);
   return {kind:'count', vals, max};
 }
@@ -319,15 +366,17 @@ function colorFor(v,info){
   if(info.kind==='ratio'){ const center=info.center||1; let l=Math.log2(v)-Math.log2(center);
     l=Math.max(-LOGR,Math.min(LOGR,l));
     const t=(l+LOGR)/(2*LOGR); const idx=Math.min(RAMP_RATIO.length-1, Math.floor(t*RAMP_RATIO.length)); return RAMP_RATIO[idx]; }
-  if(info.max<=0) return RAMP[0];
-  for(let i=0;i<_scale.breaks.length;i++){ if(v<=_scale.breaks[i]) return RAMP[i]; }
-  return RAMP[RAMP.length-1];
+  const ramp = info.kind==='rate' ? RAMP_RATE : RAMP;
+  if(info.max<=0) return ramp[0];
+  for(let i=0;i<_scale.breaks.length;i++){ if(v<=_scale.breaks[i]) return ramp[i]; }
+  return ramp[ramp.length-1];
 }
 function computeBreaks(info){
-  if(info.kind!=='count'){ _scale={breaks:[]}; return; }
+  if(info.kind!=='count' && info.kind!=='rate'){ _scale={breaks:[]}; return; }
+  const ramp = info.kind==='rate' ? RAMP_RATE : RAMP;
   const arr=Object.values(info.vals).filter(v=>v>0).sort((a,b)=>a-b);
   const breaks=[];
-  for(let i=1;i<=RAMP.length;i++){ const q=arr.length?arr[Math.min(arr.length-1,Math.floor(arr.length*i/RAMP.length))]:0; breaks.push(q); }
+  for(let i=1;i<=ramp.length;i++){ const q=arr.length?arr[Math.min(arr.length-1,Math.floor(arr.length*i/ramp.length))]:0; breaks.push(q); }
   _scale={breaks,max:info.max};
 }
 function renderMap(){
@@ -336,6 +385,7 @@ function renderMap(){
   document.getElementById('mapTitle').textContent =
     info.kind==='share' ? 'Enforcement-sensitive share of incidents, by precinct'
     : info.kind==='ratio' ? 'Complaint-to-arrest ratio, by precinct'
+    : info.kind==='rate' ? 'Incidents per 1,000 residents, by precinct'
     : 'Incident count by precinct';
   document.getElementById('mapReadme').innerHTML = mapExplainer(info);
   document.getElementById('mapNote').innerHTML = mapNoteText(info);
@@ -346,6 +396,8 @@ function mapExplainer(info){
   const lensW = state.lens==='complaints'?'complaints (crimes reported to police)':'arrests (people booked by police)';
   if(info.kind==='count')
     return `<b>How to read this</b>Darker precincts recorded <strong>more incidents</strong>. This shows ${lensW} for your selected offenses in ${yearLabel(state.year)} — raw totals, <em>not</em> adjusted for population, so larger and busier precincts tend to run higher. Hover a precinct for its number; click to open its dossier.`;
+  if(info.kind==='rate')
+    return `<b>How to read this</b>Each precinct is shaded by <strong>incidents per 1,000 residents</strong> — ${lensW} for your selected offenses in ${yearLabel(state.year)}, divided by the precinct's population. Population <em>varies by year</em> (2010 and 2020 censuses, interpolated). This adjusts for how many people live in each precinct, so a small dense precinct and a large one become comparable. <span style="opacity:.7">Central Park and the new 116th precinct are shown grey (no reliable residential base); Midtown precincts 14 and 18 run high because their daytime population dwarfs the residents counted here.</span>`;
   if(info.kind==='share')
     return `<b>How to read this</b>Each precinct is shaded by the <strong>share of its incidents that are enforcement-sensitive</strong> — proactively policed offenses like drugs, trespass and fare evasion, as opposed to victim-reported ones. <span style="color:var(--hot)"><strong>Red</strong></span> = a bigger slice is officer-initiated; <span style="color:var(--cool)"><strong>blue</strong></span> = more is victim-reported. A 40% precinct means 40 of every 100 recorded incidents were enforcement-sensitive.`;
   const c=(info.center||1).toFixed(1);
@@ -360,13 +412,15 @@ function clearPrecinct(){ const p=state.precinct; state.precinct=null;
   if(p!=null) restyleOne(p);
   document.getElementById('detailClear').style.display='none';
   document.getElementById('detailTitle').textContent='Precinct detail';
-  document.getElementById('detailBody').innerHTML='<div class="detailempty">Click any precinct on the map to open its dossier &mdash; trend and top offenses.</div>'; }
+  document.getElementById('detailBody').innerHTML='<div class="detailempty">Click any precinct on the map to open its dossier &mdash; trend and top offenses.</div>';
+  writeHash(); }
 function mapNoteText(info){
   const law = state.law==='all'?'misdemeanors + violations':(state.law===0?'misdemeanors only':'violations only');
   const sel = state.offsel.size===DATA.offenses.length?'all offenses':`${state.offsel.size} selected offense type(s)`;
   if(info.kind==='ratio') return `Both lenses · ${law} · ${sel} · ${yearLabel(state.year)}. <strong>Blue</strong> = more complaints than arrests (reporting outpaces enforcement); <strong style="color:var(--hot)">red</strong> = more arrests than complaints (enforcement-heavy). Lens toggle is ignored here.`;
   const lens = state.lens==='complaints'?'complaints (reported)':'arrests (enforcement)';
   if(info.kind==='share') return `${lens} · ${law} · share computed over all offenses · ${yearLabel(state.year)}`;
+  if(info.kind==='rate') return `${lens} · ${law} · ${sel} · per 1,000 residents · ${yearLabel(state.year)}. Population from the 2010 &amp; 2020 censuses (varies by year); Central Park &amp; the 116th are excluded.`;
   return `${lens} · ${law} · ${sel} · ${yearLabel(state.year)}`;
 }
 function rampDiv(arr){ return arr.map(c=>`<span style="background:${c}"></span>`).join(''); }
@@ -377,6 +431,9 @@ function renderLegend(info){
   else if(info.kind==='ratio'){ const c=(info.center||1);
     cap=`Complaints per arrest · log scale, centered on city average (${c.toFixed(1)}×)`; ramp=rampDiv(RAMP_RATIO);
     lbls='<span>more arrest-heavy</span><span>city average</span><span>more complaint-heavy</span>'; }
+  else if(info.kind==='rate'){ const b=_scale.breaks; const r1=n=>(n||0).toFixed(1);
+    cap='Incidents per 1,000 residents in '+yearLabel(state.year)+' · quantile bins (equal precinct count)'; ramp=rampDiv(RAMP_RATE);
+    lbls=`<span>0 (darkest)</span><span>${r1(b[Math.floor(b.length/2)])}</span><span>${r1(info.max)} (brightest)</span>`; }
   else { const b=_scale.breaks; cap='Incidents in '+yearLabel(state.year)+' · quantile bins (equal precinct count)'; ramp=rampDiv(RAMP);
     lbls=`<span>0 (darkest)</span><span>${fmt(b[Math.floor(b.length/2)]||0)}</span><span>${fmt(info.max||0)} (brightest)</span>`; }
   el.innerHTML=`<div class="cap">${cap}</div><div class="ramp">${ramp}</div><div class="lbls">${lbls}</div>`;
@@ -392,8 +449,13 @@ function showPctTip(e,p){
     let rel=''; if(d.a){ rel = r>c*1.05 ? '<br><span style="color:#9cc">more complaint-heavy than city</span>'
       : r<c*0.95 ? '<br><span style="color:#e9a">more arrest-heavy than city</span>' : '<br>near city average'; }
     body=`${fmt(d.c)} complaints · ${fmt(d.a)} arrests<br>${ratioTxt}${rel}`; }
+  else if(info && info.kind==='rate'){ const cnt=(info.count&&info.count[p])||0; const pop=info.pop&&info.pop[p];
+    if(RATE_EXCLUDE.has(p) || !pop){ body=`${fmt(cnt)} incidents<br><span style="opacity:.7">no per-capita rate — ${RATE_EXCLUDE.has(p)?'non-residential / new precinct':'no population estimate'}</span>`; }
+    else { const rt=cnt/pop*1000; const flag=DAYTIME_FLAG.has(p)?'<br><span style="color:#e9c">daytime population inflates this rate</span>':'';
+      body=`<strong>${rt.toFixed(1)}</strong> per 1,000 residents<br>${fmt(cnt)} incidents · ${fmt(pop)} residents${flag}`; } }
   else { body=`${fmt((info&&info.vals[p])||0)} incidents`; }
-  tip.innerHTML=`<strong>Precinct ${p}</strong> · ${meta.boro}<br>${body}<br><span style="opacity:.6">${yearLabel(state.year)} · click for detail</span>`;
+  const hood=nbhOf(p); const head = hood ? `Precinct ${p} · ${hood}` : `Precinct ${p}`;
+  tip.innerHTML=`<strong>${head}</strong> · ${meta.boro}<br>${body}<br><span style="opacity:.6">${yearLabel(state.year)} · click for detail</span>`;
   moveTip(e); tip.style.opacity=1;
 }
 function moveTip(e){ const ev=e.originalEvent||e; tip.style.left=(ev.pageX+14)+'px'; tip.style.top=(ev.pageY+12)+'px'; }
@@ -424,8 +486,8 @@ function renderKPIs(){
         + ig(`<strong>Enforcement-sensitive share</strong><br>Of all ${state.lens} recorded this year (every offense, regardless of the filter), the percentage that are enforcement-sensitive — proactively policed offenses like drugs, trespass and fare evasion.`),
       pct1(share), 'of all '+(state.lens)+' this year', null, HOT)
     + card('Top precinct'
-        + ig('<strong>Top precinct</strong><br>The precinct with the most recorded incidents for your current selection (lens, offense level and offenses), this year.'),
-      topP?('#'+topP):'—', topP?(boro+' · '+fmt(topV)+' incidents'):'', null, '#b08328');
+        + ig('<strong>Top precinct</strong><br>The precinct with the most recorded incidents for your current selection (lens, offense level and offenses), this year. Ranked by raw count, not population.'),
+      topP?('#'+topP):'—', topP?((nbhOf(+topP)?nbhOf(+topP)+' · ':'')+boro+' · '+fmt(topV)+' incidents'):'', null, '#b08328');
 }
 function card(lab,val,meta,extra,color){ return `<div class="kpi"><span class="accent" style="background:${color||HOT}"></span>
   <div class="lab">${lab}</div><div class="val num">${val}</div>${extra||(meta?`<div class="meta">${meta}</div>`:'')}</div>`; }
@@ -584,7 +646,7 @@ function renderRank(){
   let h=`<table class="rank"><tr><th>#</th><th class="sortable" data-sort="pct" style="cursor:pointer">Precinct${arrow('pct')}</th>`
     +`<th class="sortable" data-sort="boro" style="cursor:pointer">Borough${arrow('boro')}</th>`
     +`<th class="sortable" data-sort="count" style="text-align:right;cursor:pointer">Incidents${arrow('count')}</th><th></th></tr>`;
-  arr.slice(0,15).forEach((r,i)=>{ h+=`<tr style="cursor:pointer" data-p="${r.p}"><td>${i+1}</td><td>#${r.p}</td><td>${r.boro}</td>
+  arr.slice(0,15).forEach((r,i)=>{ h+=`<tr style="cursor:pointer" data-p="${r.p}"><td>${i+1}</td><td>#${r.p}<span class="hood">${nbhOf(r.p)}</span></td><td>${r.boro}</td>
     <td class="n">${fmt(r.v)}</td><td style="width:34%"><span class="bar" style="width:${Math.max(2,r.v/max*100)}%;background:${BORO_COL[r.boro]||'#c1432f'}"></span></td></tr>`; });
   h+='</table>';
   const t=document.getElementById('rankTable'); t.innerHTML=h;
@@ -593,7 +655,7 @@ function renderRank(){
 }
 // select a precinct AND bring the map + dossier into view (used when clicking away from the map)
 function focusPrecinct(p){
-  state.precinct=p; renderDetail(); highlightSelected();
+  state.precinct=p; renderDetail(); highlightSelected(); syncControls(); writeHash();
   if(byPctLayer[p]) map.fitBounds(byPctLayer[p].getBounds(),{maxZoom:13,padding:[40,40]});
   const panel=document.getElementById('map').closest('.panel');
   panel.scrollIntoView({behavior:'smooth',block:'start'});
@@ -614,8 +676,15 @@ function renderDetail(){
   const tmax=top.length?top[0].v:1;
   // enforcement share at precinct this year
   let pro=0,tot=0; for(const r of rows()){ if(r[1]!==p||r[0]!==yr||!passLaw(r)) continue; tot+=r[4]; if(G(r[2])==='proactive') pro+=r[4]; }
-  document.getElementById('detailTitle').textContent=`Precinct ${p} · ${meta.boro} · ${fmt(tot)} incidents`;
-  let h=`<div class="note">Enforcement-sensitive share in ${yearLabel(yr)}: <strong>${pct1(tot?pro/tot:0)}</strong> · ${fmt(tot)} total incidents (${state.lens})</div>`;
+  const hood=nbhOf(p);
+  document.getElementById('detailTitle').textContent=`Precinct ${p}${hood?' · '+hood:''} · ${meta.boro} · ${fmt(tot)} incidents`;
+  // per-capita rate for the current selection at this precinct/year
+  const pop=popOf(''+p,yr);
+  let rateLine='';
+  if(RATE_EXCLUDE.has(p) || !pop){ rateLine = ` · <span style="opacity:.7">no per-capita rate (${RATE_EXCLUDE.has(p)?'non-residential / new precinct':'no population estimate'})</span>`; }
+  else { const rt=tot/pop*1000; const flag=DAYTIME_FLAG.has(p)?' <span style="color:var(--hot)">(daytime population inflates this)</span>':'';
+    rateLine = ` · <strong>${rt.toFixed(1)}</strong> per 1,000 residents (${fmt(pop)} residents, ${yearLabel(yr)})${flag}`; }
+  let h=`<div class="note">Enforcement-sensitive share in ${yearLabel(yr)}: <strong>${pct1(tot?pro/tot:0)}</strong> · ${fmt(tot)} total incidents (${state.lens})${rateLine}</div>`;
   h+='<div id="detTrend"></div>';
   h+=`<h3 style="margin-top:10px;font-size:13px">Top offenses, ${yearLabel(yr)}</h3><table class="rank">`;
   top.forEach(t=>{ const o=DATA.offenses[t.o]; h+=`<tr><td><span class="pill" style="border-color:${GCOL[o.group]};color:${GCOL[o.group]};cursor:help" data-tip="${GROUP_DEF[o.group]}">${GNAME[o.group][0]}</span></td>`
@@ -623,6 +692,85 @@ function renderDetail(){
   h+='</table>';
   const body=document.getElementById('detailBody'); body.innerHTML=h;
   lineChart('detTrend',[toSeries(ser,'Precinct '+p+' (current selection)','#1b1b1a')],{zero:true,height:170,events:true});
+}
+
+/* ---------- dynamic labels ---------- */
+function millions(n){ return (n/1e6).toFixed(1)+' million'; }
+function quarterPhrase(ql){ const m=(ql||'').match(/Q([1-4])\s+(\d{4})/); if(!m) return ql||'';
+  return `the ${({1:'first',2:'second',3:'third',4:'fourth'})[m[1]]} quarter of ${m[2]}`; }
+function prettyDate(iso){ const p=(iso||'').split('-'); if(p.length!==3) return iso||'';
+  return `${['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1]]} ${+p[2]}`; }
+function fillDynamicLabels(){
+  const w=DATA.window||{}, ql=w.quarterLabel||'';
+  const set=(id,txt)=>{ const el=document.getElementById(id); if(el) el.textContent=txt; };
+  if(w.partial && ql){ set('dlWindow', ql); set('scrubEnd', ql); set('sfWindow', quarterPhrase(ql)); }
+  set('sfComplaints', millions(DATA.complaints.reduce((s,r)=>s+r[4],0)));
+  set('sfArrests',    millions(DATA.arrests.reduce((s,r)=>s+r[4],0)));
+  if(w.partial && w.partialYear)
+    set('ftWindow', `${w.partialYear} is partial (${ql}${w.end?', through '+prettyDate(w.end):''}).`);
+  if(ql) document.title = `'Small' Crimes Up Close — New York City misdemeanors and violations, 2015 – ${ql}`;
+}
+
+/* ---------- shareable deep-link state ---------- */
+function writeHash(){
+  if(!DATA) return;
+  const q=[];
+  if(state.lens!=='complaints') q.push('l=a');
+  if(state.law!=='all') q.push('w='+(state.law===0?'m':'v'));
+  if(state.metric!=='count') q.push('m='+state.metric);
+  if(state.year!==DEFAULT_YEAR) q.push('y='+state.year);
+  if(state.precinct!=null) q.push('p='+state.precinct);
+  if(state.offsel.size!==DATA.offenses.length) q.push('o='+[...state.offsel].sort((a,b)=>a-b).join('.'));
+  const base=location.pathname+location.search;
+  history.replaceState(null,'', q.length? base+'#'+q.join('&') : base);
+}
+function applyHash(){
+  const h=location.hash.replace(/^#/,''); if(!h) return;
+  const q={}; h.split('&').forEach(kv=>{ const i=kv.indexOf('='); if(i>0) q[kv.slice(0,i)]=kv.slice(i+1); });
+  if(q.l==='a') state.lens='arrests';
+  if(q.w==='m') state.law=0; else if(q.w==='v') state.law=1;
+  if(q.m && ['count','rate','share','ratio'].includes(q.m)) state.metric=q.m;
+  if(q.y!=null){ const y=+q.y; if(DATA.years.includes(y)) state.year=y; }
+  if(q.p!=null){ const p=+q.p; if(DATA.precincts.some(x=>x.pct===p)) state.precinct=p; }
+  if(q.o!=null){ state.offsel.clear();
+    q.o.split('.').forEach(id=>{ const i=+id; if(i>=0&&i<DATA.offenses.length) state.offsel.add(i); });
+    if(state.offsel.size===0) DATA.offenses.forEach((o,i)=>state.offsel.add(i)); }
+}
+function setSeg(id,v){ const el=document.getElementById(id); if(!el) return;
+  [...el.children].forEach(c=>c.setAttribute('aria-checked', c.dataset.v===String(v))); }
+function syncControls(){
+  setSeg('lensSeg', state.lens);
+  setSeg('lawSeg', state.law==='all'?'all':state.law);
+  setSeg('metricSeg', state.metric);
+  document.getElementById('yearVal').textContent=yearLabel(state.year);
+  const yj=document.getElementById('yearJump'); if(yj) yj.value=state.year;
+  const dc=document.getElementById('detailClear'); if(dc) dc.style.display = state.precinct!=null?'inline-block':'none';
+}
+function copyLink(){
+  writeHash(); const url=location.href;
+  const m=document.getElementById('copyMsg');
+  const ok=()=>{ if(m){ m.textContent='Link copied'; m.classList.add('show'); setTimeout(()=>m.classList.remove('show'),1800); } };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok).catch(()=>prompt('Copy this link:',url));
+  else prompt('Copy this link:',url);
+}
+
+/* ---------- CSV export (current lens / offense level / offense selection) ---------- */
+function exportCSV(){
+  const lens=state.lens;
+  const pb={}; DATA.precincts.forEach(p=>pb[p.pct]=p.boro);
+  const lawTxt = state.law==='all'?'misdemeanor+violation':(state.law===0?'misdemeanor':'violation');
+  const agg={}; for(const r of DATA[lens]){ if(!passLaw(r)||!passSel(r)) continue; const k=r[1]+'|'+r[0]; agg[k]=(agg[k]||0)+r[4]; }
+  const q=s=>`"${String(s==null?'':s).replace(/"/g,'""')}"`;
+  const lines=[['precinct','neighborhood','borough','year','lens','offense_level','incidents','population','per_1000_residents'].join(',')];
+  DATA.precincts.map(p=>p.pct).sort((a,b)=>a-b).forEach(p=>{
+    DATA.years.forEach(y=>{ const c=agg[p+'|'+y]||0; const pop=popOf(''+p,y);
+      const rate=(RATE_EXCLUDE.has(p)||!pop)?'':(c/pop*1000).toFixed(2);
+      lines.push([p,q(nbhOf(p)),q(pb[p]||''),y,lens,q(lawTxt),c,(pop==null?'':pop),rate].join(',')); });
+  });
+  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=`small-crimes_${lens}_${lawTxt.replace(/\+/g,'-')}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 /* ---------- orchestration ---------- */
@@ -657,7 +805,7 @@ let _tour=null;
 function toggleTour(){ if(_tour){ endTour(); return; } startTour(); }
 function endTour(){ if(_tour){ clearInterval(_tour); _tour=null; }
   document.getElementById('tourCap').classList.remove('show');
-  document.getElementById('tourBtn').textContent='Read the ledger →'; }
+  document.getElementById('tourBtn').textContent='Take the tour →'; }
 function startTour(){
   stopPlay();
   document.getElementById('tourBtn').textContent='✕ Stop tour';
@@ -666,7 +814,7 @@ function startTour(){
   document.getElementById('map').scrollIntoView({block:'center'});
   const cap=document.getElementById('tourCap');
   const evByYear={}; EVENTS.forEach(e=>evByYear[e.year]=e.label);
-  const intro={2015:'2015 — the start of the ledger. Watch the precincts pulse as a decade of low-level enforcement plays out.'};
+  const intro={2015:'2015 — the start of the record. Watch the precincts pulse as a decade of low-level enforcement plays out.'};
   setYear(DATA.years[0]);
   const show=txt=>{ cap.innerHTML=txt; cap.classList.add('show'); };
   show(intro[2015]);
