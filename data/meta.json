@@ -1,9 +1,9 @@
 {
-  "generated": "2026-05-21",
+  "generated": "2026-08-05",
   "start": "2015-01-01",
-  "data_through": "2026-03-31",
-  "quarter_label": "Q1 2026",
+  "data_through": "2026-06-30",
+  "quarter_label": "Q2 2026",
   "partial": true,
   "partial_year": 2026,
-  "note": "2026 is partial (Q1 only: Jan 1 - Mar 31). Compare 2026 against prior Q1s, not full years."
+  "note": "2026 is partial (Q2 2026 only, through Jun 30). Compare it against the same period in prior years, not against full years."
 }
