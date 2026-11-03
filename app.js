@@ -814,13 +814,13 @@ function startTour(){
   document.getElementById('map').scrollIntoView({block:'center'});
   const cap=document.getElementById('tourCap');
   const evByYear={}; EVENTS.forEach(e=>evByYear[e.year]=e.label);
-  const intro={2015:'2015 — the start of the record. Watch the precincts pulse as a decade of low-level enforcement plays out.'};
+  const intro={2015:'2015 — the start of the record. The map now steps through each year.'};
   setYear(DATA.years[0]);
   const show=txt=>{ cap.innerHTML=txt; cap.classList.add('show'); };
   show(intro[2015]);
   _tour=setInterval(()=>{
     const i=DATA.years.indexOf(state.year);
-    if(i>=DATA.years.length-1){ show('2026 — first quarter only. Scrub the bars or pick a precinct to keep exploring.'); clearInterval(_tour); _tour='done'; setTimeout(()=>{ if(_tour==='done') endTour(); },4000); return; }
+    if(i>=DATA.years.length-1){ show('2026 — first quarter only. Scrub the bars or pick a precinct to see more.'); clearInterval(_tour); _tour='done'; setTimeout(()=>{ if(_tour==='done') endTour(); },4000); return; }
     const ny=DATA.years[i+1]; setYear(ny);
     if(evByYear[ny]) show(`<b>${ny}</b> — ${evByYear[ny]}.`);
     else cap.classList.remove('show');

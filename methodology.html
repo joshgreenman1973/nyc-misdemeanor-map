@@ -33,7 +33,7 @@
   <div class="kicker">Methodology &amp; sources</div>
   <h1>How this map was built</h1>
   <p class="lede">This document records every data source, every analytical choice and every known
-  limitation behind the map of New York City misdemeanors and violations. Nothing here is a black box.
+  limitation behind the map of New York City misdemeanors and violations.
   The two scripts that produce the data are public and re-runnable.</p>
 
   <h2>What the map shows</h2>
@@ -70,7 +70,7 @@
   not against full years. Year-over-year change figures are suppressed for 2026.</div>
 
   <h2>The enforcement-sensitivity classification</h2>
-  <p>The central analytical move is to separate offenses whose recorded counts move with <em>policing strategy</em>
+  <p>The map separates offenses whose recorded counts move with <em>policing strategy</em>
   from those that mostly reflect <em>underlying victimization</em>. Each offense type is assigned to one of three
   groups. This is a documented editorial judgment, not an official NYPD category — the complete assignment is
   exported to <a href="data/classification.csv">classification.csv</a> so it can be inspected or contested.</p>
@@ -87,7 +87,7 @@
   criminal mischief, sex crimes, forcible touching, fraud, unauthorized use of a vehicle, possession of stolen
   property, offenses against children, endangering welfare.</em></p>
 
-  <p><span class="group g-oth">Other / mixed</span> Administrative catch-alls, ambiguous grab-bag categories, and
+  <p><span class="group g-oth">Other / mixed</span> Administrative catch-alls, ambiguous grab-bag categories and
   offenses that arise <em>downstream</em> of police contact rather than from a push to police a behavior:
   <em>offenses against public administration (resisting arrest, obstructing governmental administration),
   "offense against public order/sensibility," administrative code, miscellaneous penal law, other state laws,
@@ -100,14 +100,14 @@
       of enforcement rather than a target of an enforcement push, so grouping it with drugs or trespass would
       overstate the enforcement-sensitive total.</li>
     <li><strong>"Offense against public order/sensibility"</strong> is a large, heterogeneous bucket (public lewdness,
-      unlawful surveillance, and more) that is part proactive and part victim-reported. Rather than guess, it is
+      unlawful surveillance and more) that is part proactive and part victim-reported. It is
       left in <em>Other</em>.</li>
     <li><strong>Dangerous weapons (possession)</strong> and <strong>vehicle-and-traffic-law</strong> offenses are
       treated as enforcement-sensitive because, at the misdemeanor/violation level, they are overwhelmingly
       discovered through stops and proactive checks.</li>
   </ul>
 
-  <h2>The most important limitation: this is not all enforcement</h2>
+  <h2>Main limitation: summonses are missing</h2>
   <div class="callout">For the lowest-level offenses, much enforcement never appears in either dataset here.
   Fare evasion, open-container, public urination, disorderly conduct and similar quality-of-life matters are
   frequently resolved with a <strong>criminal court summons</strong> or a <strong>civil/OATH summons</strong>,
@@ -117,7 +117,7 @@
   version could add the NYPD criminal-court-summons dataset.</div>
   <p>More generally: complaint data measures <em>reported</em> crime, which is shaped by public willingness to
   report; arrest data measures <em>police activity</em>, not the amount of crime occurring. Neither is a direct
-  measure of how much low-level offending actually happens.</p>
+  measure of how much low-level offending happens.</p>
 
   <h2>The complaint-to-arrest ratio view</h2>
   <p>The map's third shading option divides each precinct's complaints by its arrests (for the selected offenses
@@ -153,18 +153,18 @@
       <a href="https://github.com/jkeefe/census-by-precincts">census-by-precincts</a> crosswalk. Both censuses use the
       same 2020 boundaries, so the two counts are directly comparable.</li>
     <li><strong>Between the censuses (2015&ndash;2020).</strong> Each precinct's population is <strong>linearly
-      interpolated</strong> between its 2010 and 2020 counts, giving a distinct, real-anchored estimate for every year
-      &mdash; not one static number applied to the whole decade.</li>
+      interpolated</strong> between its 2010 and 2020 counts, giving a distinct estimate for every year,
+      anchored to the two census counts.</li>
     <li><strong>After 2020 (2021 onward).</strong> Population is <strong>held at the 2020 count.</strong> No reliable
-      annual population exists at the precinct level after the 2020 census, so rather than extrapolate a trend (which
-      can overshoot) or invent numbers, we hold the last real count and say so. Recent rates should be read with that
+      annual population exists at the precinct level after the 2020 census, and extrapolating a trend
+      can overshoot, so the map holds the last census count. Recent rates should be read with that
       caveat: the citywide population moved modestly after 2020, but the map keeps precinct denominators fixed.</li>
     <li><strong>Excluded precincts.</strong> The <strong>22nd (Central Park)</strong> has a negligible residential base
       (about 130 people) so a per-capita rate is meaningless; the <strong>116th</strong> (operational since 2024, carved
       from the 105th) has no census crosswalk yet. Both are shown grey in rate mode and left blank in the CSV.</li>
     <li><strong>Daytime-population flag.</strong> Midtown precincts <strong>14 and 18</strong> run high on per-capita
       rates because their daytime and commuter population dwarfs the residents the census counts. The tooltip and
-      dossier flag this; the rate is real but reflects a denominator that undercounts who is actually present.</li>
+      dossier flag this; the rate is real but reflects a denominator that undercounts who is present.</li>
   </ul>
   <p>Rates are a comparison aid, not a risk score. The full per-precinct, per-year population and rate for any
   selection is available through <em>Download CSV</em>.</p>
@@ -187,11 +187,11 @@
       <strong>auto-detects the latest complete calendar quarter</strong> from the year-to-date datasets (so nothing has
       to be hand-edited when a new quarter lands) and writes the resolved window to <code>data/meta.json</code>.</li>
     <li><code>build_data.py</code> — canonicalizes offenses, applies the classification, attaches per-year populations
-      and neighborhood names, simplifies the precinct boundaries, and writes <a href="data/data.json">data.json</a>,
+      and neighborhood names, simplifies the precinct boundaries and writes <a href="data/data.json">data.json</a>,
       <a href="data/precincts.json">precincts.json</a> and <a href="data/classification.csv">classification.csv</a>.</li>
   </ul>
   <p>Run <code>python3 fetch_data.py &amp;&amp; python3 build_data.py</code>. No API key is required. A monthly GitHub
-  Action re-runs both and commits the result only when the data actually changes.</p>
+  Action re-runs both and commits the result only when the data changes.</p>
 
   <footer>
     Generated May 21, 2026. Data via New York City Open Data. This is a data tool: it reports counts and shares and

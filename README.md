@@ -5,7 +5,7 @@ misdemeanors and violations — with two lenses (**complaints** = reported crime
 enforcement activity) and an enforcement-sensitivity breakout that separates proactively policed
 offenses from victim-reported ones.
 
-Features: precinct choropleth with three shadings — incident count, enforcement-sensitive share, and a
+Features: precinct choropleth with three shadings — incident count, enforcement-sensitive share and a
 **complaint-to-arrest ratio** (diverging scale centered on the citywide ratio) — plus a year slider with
 play-through, an offense search that also accepts a year (type "2020" to jump the map), a citywide trend by
 offense group, a reported-vs-enforced comparison, borough trends, precinct ranking, per-precinct drill-down,
@@ -42,4 +42,4 @@ python3 -m http.server 8129
 # open http://localhost:8129
 ```
 
-See [methodology.html](methodology.html) for the full method, the offense classification, and limitations.
+See [methodology.html](methodology.html) for the full method, the offense classification and limitations.
